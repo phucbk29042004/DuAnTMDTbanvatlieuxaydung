@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="author" content="Untree.co">
+  <link rel="shortcut icon" href="favicon.png">
+
+  <meta name="description" content="Danh sách đơn hàng của bạn" />
+  <meta name="keywords" content="đơn hàng, lịch sử mua hàng" />
+
+  <link href="../css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <link href="../css/tiny-slider.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <title>Đơn hàng của tôi - Decora</title>
+</head>
+
+<body>
+
+  <!-- Start Header/Navigation -->
+  <nav class="custom-navbar navbar navbar-expand-md navbar-dark bg-dark" aria-label="Thanh điều hướng Decora">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">Decora<span>.</span></a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsDecora" aria-controls="navbarsDecora" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarsDecora">
+        <ul class="custom-navbar-nav navbar-nav ms-auto mb-2 mb-md-0">
+          <li class="nav-item"><a class="nav-link" href="index.html">Trang chủ</a></li>
+          <li><a class="nav-link" href="shop.html">Sản phẩm</a></li>
+          <li><a class="nav-link" href="about.html">Giới thiệu</a></li>
+          <li><a class="nav-link" href="services.html">Dịch vụ</a></li>
+          <li><a class="nav-link" href="contact.html">Liên hệ</a></li>
+        </ul>
+
+        <ul class="custom-navbar-cta navbar-nav mb-2 mb-md-0 ms-5">
+          <li id="user-nav" class="nav-item d-flex align-items-center">
+            <a id="login-link" class="nav-link d-flex align-items-center" href="login.html" aria-label="Tài khoản">
+              <img src="../images/user.svg" alt="Tài khoản" id="user-icon" style="width:22px; height:22px;">
+            </a>
+
+            <div id="user-info" class="user-info ms-2" style="display:none; position: relative;">
+              <span class="greeting">Xin chào,</span>
+              <b id="username" class="username"></b>
+              <span class="divider">|</span>
+              <span style="cursor: pointer;"><i class="fas fa-chevron-down ms-1" style="font-size: 12px;"></i></span>
+              <a href="#" id="logout-link" class="logout-link" style="display: none;">Đăng xuất</a>
+            </div>
+          </li>
+          <li><a class="nav-link" href="cart.html" aria-label="Giỏ hàng"><img src="../images/cart.svg" alt="Giỏ hàng"></a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <!-- End Header/Navigation -->
+
+  <!-- Start Hero Section -->
+  <div class="hero">
+    <div class="container">
+      <div class="row justify-content-between">
+        <div class="col-lg-5">
+          <div class="intro-excerpt">
+            <h1>Đơn hàng <span class="d-block">của tôi</span></h1>
+            <p class="mb-4">Xem lịch sử đơn hàng và trạng thái đặt hàng của bạn.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- End Hero Section -->
+
+  <!-- Start Orders Section -->
+  <div class="untree_co-section before-footer-section">
+    <div class="container">
+      <div class="row mb-4">
+        <div class="col-md-12">
+          <div class="d-flex justify-content-between align-items-center">
+            <h2 class="section-title mb-0">Danh sách đơn hàng</h2>
+            <div id="loading-spinner" class="spinner-border text-primary" role="status" style="display: none;">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="orders-container">
+        <!-- Đơn hàng sẽ được render động ở đây -->
+      </div>
+
+      <div id="no-orders" class="row" style="display: none;">
+        <div class="col-md-12 text-center">
+          <p class="text-muted mb-3">Bạn chưa có đơn hàng nào.</p>
+          <a href="shop.html" class="btn btn-primary btn-sm">Mua sắm ngay</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- End Orders Section -->
+
+  <!-- Order Detail Modal -->
+  <div id="order-detail-modal" class="order-modal" aria-hidden="true">
+    <div class="order-modal-backdrop" data-close-modal></div>
+    <div class="order-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="order-modal-title">
+      <button class="order-modal-close" aria-label="Đóng" data-close-modal>&times;</button>
+      <div id="order-modal-body" class="order-modal-body">
+        <div class="text-center text-muted py-5">
+          <div class="spinner-border text-primary mb-3 d-none" role="status" id="order-modal-spinner">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mb-0">Chọn một đơn hàng để xem chi tiết.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Footer Section -->
+  <footer class="footer-section">
+    <div class="container relative">
+      <div class="row g-5 mb-5">
+        <div class="col-lg-4">
+          <div class="mb-4 footer-logo-wrap"><a href="#" class="footer-logo">Decora<span>.</span></a></div>
+          <p class="mb-4">Chuyên cung cấp vật liệu trang trí nội thất cao cấp & dịch vụ thi công trọn gói.</p>
+
+          <ul class="list-unstyled custom-social">
+            <li><a href="#" aria-label="Facebook"><span class="fa-brands fa-facebook-f"></span></a></li>
+            <li><a href="#" aria-label="Instagram"><span class="fa-brands fa-instagram"></span></a></li>
+            <li><a href="#" aria-label="Zalo"><span class="fa-brands fa-whatsapp"></span></a></li>
+            <li><a href="#" aria-label="YouTube"><span class="fa-brands fa-youtube"></span></a></li>
+          </ul>
+        </div>
+
+        <div class="col-lg-8">
+          <div class="row links-wrap">
+            <div class="col-6 col-sm-6 col-md-3">
+              <ul class="list-unstyled">
+                <li><a href="about.html">Giới thiệu</a></li>
+                <li><a href="services.html">Dịch vụ</a></li>
+                <li><a href="blog.html">Tin tức</a></li>
+                <li><a href="contact.html">Liên hệ</a></li>
+              </ul>
+            </div>
+
+            <div class="col-6 col-sm-6 col-md-3">
+              <ul class="list-unstyled">
+                <li><a href="#">Hỗ trợ</a></li>
+                <li><a href="#">Hướng dẫn mua hàng</a></li>
+                <li><a href="#">Chính sách bảo hành</a></li>
+              </ul>
+            </div>
+
+            <div class="col-6 col-sm-6 col-md-3">
+              <ul class="list-unstyled">
+                <li><a href="#">Tuyển dụng</a></li>
+                <li><a href="#">Đối tác</a></li>
+                <li><a href="#">Chính sách bảo mật</a></li>
+              </ul>
+            </div>
+
+            <div class="col-6 col-sm-6 col-md-3">
+              <ul class="list-unstyled">
+                <li><a href="#">Gạch ốp lát</a></li>
+                <li><a href="#">Sơn tường</a></li>
+                <li><a href="#">Giấy dán tường</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+  <!-- End Footer Section -->
+
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.8/dist/axios.min.js"></script>
+  <script type="module" src="../js/orders.js"></script>
+  <script type="module" src="../js/api/userStatus.js"></script>
+  <script src="../js/bootstrap.bundle.min.js"></script>
+  <script src="../js/tiny-slider.js"></script>
+  <script src="../js/custom.js"></script>
+</body>
+</html>

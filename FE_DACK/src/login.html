@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="../css/login.css" />
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.8/dist/axios.min.js"></script>
+  <title>Đăng nhập / Đăng ký</title>
+</head>
+<body>
+  <div class="container" id="container">
+    <!-- Đăng ký -->
+    <div class="form-container sign-up">
+      <form id="register-form">
+        <h1>Tạo tài khoản</h1>
+        <span>hoặc dùng email của bạn để đăng ký</span>
+        <input type="text" placeholder="Họ tên" name="HoTen" required />
+        <input type="text" placeholder="Địa chỉ" name="DiaChi" required />
+        <input type="tel" placeholder="SĐT" name="SoDienThoai" required />
+        <input type="email" placeholder="Email" name="Email" required />
+        <input type="password" placeholder="Mật khẩu" name="MatKhau" required />
+        <button type="submit">Đăng ký</button>
+      </form>
+    </div>
+
+    <!-- Đăng nhập -->
+    <div class="form-container sign-in">
+      <form id="login-form">
+        <h1>Đăng nhập</h1>
+        <span>hoặc sử dụng email và mật khẩu</span>
+        <input type="email" placeholder="Email" name="Email" required />
+        <input type="password" placeholder="Mật khẩu" name="MatKhau" required />
+        <a href="./forgot-password.html">Quên mật khẩu?</a>
+        <button type="submit">Đăng nhập</button>
+      </form>
+    </div>
+
+    <!-- Chuyển tab -->
+    <div class="toggle-container">
+      <div class="toggle">
+        <div class="toggle-panel toggle-left">
+          <h1>Chào mừng trở lại!</h1>
+          <p>Đăng nhập để sử dụng đầy đủ các tính năng của trang web</p>
+          <button class="hidden" id="login">Đăng nhập</button>
+        </div>
+        <div class="toggle-panel toggle-right">
+          <h1>Xin chào!</h1>
+          <p>Đăng ký tài khoản mới để trải nghiệm dịch vụ</p>
+          <button class="hidden" id="register">Đăng ký</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="../js/login.js"></script>
+</body>
+</html>
