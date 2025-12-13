@@ -9,7 +9,9 @@ public partial class SanPhamYeuThich
 
     public int? IdCustomer { get; set; }
 
-    public long? IdProduct { get; set; }
+    public int? IdProduct { get; set; }
 
-    public virtual Product IdProductNavigation { get; set; }
+    // Navigation Properties
+    public virtual Customer? IdCustomerNavigation { get; set; }
+    public virtual Product? IdProductNavigation { get; set; }
 }

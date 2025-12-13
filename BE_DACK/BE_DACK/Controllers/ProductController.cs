@@ -41,13 +41,16 @@ namespace BE_DACK.Controllers
                     (o.TrangThai == "Đã thanh toán" || o.TrangThai == "Hoàn thành") &&
                     o.OrderDetails.Any(d => d.ProductId == productId));
         }
+
+        #region Product CRUD Operations
+
         [HttpGet("DanhSachSanPham")]
-        public IActionResult DanhSachSanPham()
+        public async Task<IActionResult> DanhSachSanPham()
         {
-           
             try
             {
-                var danhSachSanPham = _context.Products
+                var danhSachSanPham = await _context.Products
+                    .Include(p => p.ProductImages)
                     .Select(p => new
                     {
                         id = p.Id,
@@ -56,14 +59,14 @@ namespace BE_DACK.Controllers
                         gia = p.Gia,
                         soLuongConLaiTrongKho = p.SoLuongConLaiTrongKho,
                         categoryId = p.CategoryId,
-                        hinhAnh = p.ProductImages.Select(p => new
+                        hinhAnh = p.ProductImages.Select(img => new
                         {
-                            p.Id,
-                            p.ProductId,
-                            p.HinhAnh
-                        })
+                            id = img.Id,
+                            productId = img.ProductId,
+                            hinhAnh = img.HinhAnh
+                        }).ToList()
                     })
-                    .ToList();
+                    .ToListAsync();
 
                 return Ok(new
                 {
@@ -83,112 +86,6 @@ namespace BE_DACK.Controllers
                 });
             }
         }
-        [HttpGet("DanhSachDanhMuc")]
-        public IActionResult DanhSachDanhMuc()
-        {
-            try
-            {
-                var danhSachDanhMuc = _context.Categories
-                    .Select(c => new
-                    {
-                        id = c.Id,
-                        tenDanhMuc = c.TenDanhMucSp,
-                        moTa = c.MoTaDanhMuc
-                    })
-                    .ToList();
-
-                return Ok(new
-                {
-                    success = true,
-                    message = "Lấy danh sách danh mục thành công",
-                    data = danhSachDanhMuc,
-                    total = danhSachDanhMuc.Count
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Lỗi khi lấy danh sách danh mục",
-                    error = ex.Message
-                });
-            }
-        }
-
-        [HttpGet("DanhSachSanPhamTheoDanhMuc/{categoryId}")]
-        public IActionResult DanhSachSanPhamTheoDanhMuc(int categoryId)
-        {
-            try
-            {
-                var sanPhamTheoDanhMuc = _context.Products
-                    .Where(p => p.CategoryId == categoryId)
-                    .Select(p => new
-                    {
-                        id = p.Id,
-                        tenSp = p.TenSp,
-                        moTa = p.MoTa,
-                        gia = p.Gia,
-                        soLuongConLaiTrongKho = p.SoLuongConLaiTrongKho,
-                        categoryId = p.CategoryId,
-                        hinhAnh = p.ProductImages.Select(p => new
-                        {
-                            p.Id,
-                            p.ProductId,
-                            p.HinhAnh
-                        })
-                    })
-                    .ToList();
-
-                if (sanPhamTheoDanhMuc == null || sanPhamTheoDanhMuc.Count == 0)
-                {
-                    return NotFound(new
-                    {
-                        success = false,
-                        message = "Không tìm thấy sản phẩm nào thuộc danh mục này"
-                    });
-                }
-
-                return Ok(new
-                {
-                    success = true,
-                    message = "Lấy danh sách sản phẩm theo danh mục thành công",
-                    data = sanPhamTheoDanhMuc,
-                    total = sanPhamTheoDanhMuc.Count
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Lỗi khi lấy danh sách sản phẩm theo danh mục",
-                    error = ex.Message
-                });
-            }
-        }
-        
-
-        [HttpDelete("XoaSanPham/{id}")]
-        public async Task<IActionResult> XoaSanPham(int id)
-        {
-            try
-            {
-                var product = await _context.Products.FindAsync(id);
-                if (product == null)
-                    return NotFound(new { success = false, message = "Không tìm thấy sản phẩm" });
-
-                _context.Products.Remove(product);
-                await _context.SaveChangesAsync();
-
-                return Ok(new { success = true, message = "Xóa sản phẩm thành công" });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = "Lỗi khi xóa sản phẩm", error = ex.Message });
-            }
-        }
-        // Thêm vào ProductController
 
         [HttpGet("ChiTietSanPham/{id}")]
         public async Task<IActionResult> ChiTietSanPham(int id)
@@ -255,9 +152,9 @@ namespace BE_DACK.Controllers
             {
                 return BadRequest(new
                 {
-                    Success = false,
-                    Message = "Dữ liệu không hợp lệ",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                    success = false,
+                    message = "Dữ liệu không hợp lệ",
+                    errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
                 });
             }
 
@@ -276,28 +173,30 @@ namespace BE_DACK.Controllers
                 _context.Products.Add(sp);
                 await _context.SaveChangesAsync();
 
-                // Upload hình ảnh
-                foreach (var file in model.HinhAnh)
+                if (model.HinhAnh != null && model.HinhAnh.Any())
                 {
-                    var url = await _cloudinaryService.UploadImageAsync(file, "SanPham");
-                    if (!string.IsNullOrEmpty(url))
+                    foreach (var file in model.HinhAnh)
                     {
-                        _context.ProductImages.Add(new ProductImage
+                        var url = await _cloudinaryService.UploadImageAsync(file, "SanPham");
+                        if (!string.IsNullOrEmpty(url))
                         {
-                            ProductId = sp.Id,
-                            HinhAnh = url
-                        });
+                            _context.ProductImages.Add(new ProductImage
+                            {
+                                ProductId = sp.Id,
+                                HinhAnh = url
+                            });
+                        }
                     }
+                    await _context.SaveChangesAsync();
                 }
 
-                await _context.SaveChangesAsync();
                 await trans.CommitAsync();
 
                 return Ok(new
                 {
-                    Success = true,
-                    Message = "Thêm sản phẩm thành công",
-                    Data = new { ProductId = sp.Id }
+                    success = true,
+                    message = "Thêm sản phẩm thành công",
+                    data = new { productId = sp.Id }
                 });
             }
             catch (Exception ex)
@@ -305,22 +204,23 @@ namespace BE_DACK.Controllers
                 await trans.RollbackAsync();
                 return BadRequest(new
                 {
-                    Success = false,
-                    Message = "Có lỗi xảy ra khi thêm sản phẩm",
-                    Error = ex.Message
+                    success = false,
+                    message = "Có lỗi xảy ra khi thêm sản phẩm",
+                    error = ex.Message
                 });
             }
         }
-        [HttpPut("SuaSanPham")]  // Hoặc [HttpPatch("SuaSanPham")]
+
+        [HttpPut("SuaSanPham")]
         public async Task<IActionResult> SuaSanPham([FromForm] SuaSanPhamRequest model)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(new
                 {
-                    Success = false,
-                    Message = "Dữ liệu không hợp lệ",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                    success = false,
+                    message = "Dữ liệu không hợp lệ",
+                    errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
                 });
             }
 
@@ -333,18 +233,16 @@ namespace BE_DACK.Controllers
                 {
                     return NotFound(new
                     {
-                        Success = false,
-                        Message = $"Không tìm thấy sản phẩm với ID = {model.Id}"
+                        success = false,
+                        message = $"Không tìm thấy sản phẩm với ID = {model.Id}"
                     });
                 }
 
-                // CHỈ cập nhật những field có giá trị (không null/empty)
                 if (!string.IsNullOrWhiteSpace(model.TenSp))
                 {
                     product.TenSp = model.TenSp;
                 }
 
-                // Cho phép xóa mô tả bằng cách gửi chuỗi rỗng
                 if (model.MoTa != null)
                 {
                     product.MoTa = string.IsNullOrWhiteSpace(model.MoTa) ? null : model.MoTa;
@@ -360,7 +258,6 @@ namespace BE_DACK.Controllers
                     product.SoLuongConLaiTrongKho = model.SoLuongConLaiTrongKho.Value;
                 }
 
-                // Cho phép xóa CategoryId bằng cách gửi 0 hoặc -1
                 if (model.CategoryId.HasValue)
                 {
                     product.CategoryId = model.CategoryId.Value <= 0 ? null : model.CategoryId.Value;
@@ -369,7 +266,6 @@ namespace BE_DACK.Controllers
                 _context.Products.Update(product);
                 await _context.SaveChangesAsync();
 
-                // Thêm hình ảnh mới nếu có (giữ nguyên ảnh cũ)
                 if (model.HinhAnh != null && model.HinhAnh.Any())
                 {
                     foreach (var file in model.HinhAnh)
@@ -391,9 +287,9 @@ namespace BE_DACK.Controllers
 
                 return Ok(new
                 {
-                    Success = true,
-                    Message = "Cập nhật sản phẩm thành công",
-                    Data = product
+                    success = true,
+                    message = "Cập nhật sản phẩm thành công",
+                    data = product
                 });
             }
             catch (Exception ex)
@@ -401,10 +297,144 @@ namespace BE_DACK.Controllers
                 await trans.RollbackAsync();
                 return BadRequest(new
                 {
-                    Success = false,
-                    Message = "Có lỗi xảy ra khi cập nhật sản phẩm",
-                    Error = ex.Message
+                    success = false,
+                    message = "Có lỗi xảy ra khi cập nhật sản phẩm",
+                    error = ex.Message
                 });
+            }
+        }
+
+        [HttpDelete("XoaSanPham/{id}")]
+        public async Task<IActionResult> XoaSanPham(int id)
+        {
+            try
+            {
+                var product = await _context.Products.FindAsync(id);
+                if (product == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy sản phẩm" });
+                }
+
+                _context.Products.Remove(product);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Xóa sản phẩm thành công" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Lỗi khi xóa sản phẩm", error = ex.Message });
+            }
+        }
+
+        #endregion
+
+        #region Category Operations
+
+        [HttpGet("DanhSachDanhMuc")]
+        public async Task<IActionResult> DanhSachDanhMuc()
+        {
+            try
+            {
+                var danhSachDanhMuc = await _context.Categories
+                    .Select(c => new
+                    {
+                        id = c.Id,
+                        tenDanhMuc = c.TenDanhMucSp,
+                        moTa = c.MoTaDanhMuc
+                    })
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy danh sách danh mục thành công",
+                    data = danhSachDanhMuc,
+                    total = danhSachDanhMuc.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi lấy danh sách danh mục",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpGet("DanhSachSanPhamTheoDanhMuc/{categoryId}")]
+        public async Task<IActionResult> DanhSachSanPhamTheoDanhMuc(int categoryId)
+        {
+            try
+            {
+                var sanPhamTheoDanhMuc = await _context.Products
+                    .Where(p => p.CategoryId == categoryId)
+                    .Include(p => p.ProductImages)
+                    .Select(p => new
+                    {
+                        id = p.Id,
+                        tenSp = p.TenSp,
+                        moTa = p.MoTa,
+                        gia = p.Gia,
+                        soLuongConLaiTrongKho = p.SoLuongConLaiTrongKho,
+                        categoryId = p.CategoryId,
+                        hinhAnh = p.ProductImages.Select(img => new
+                        {
+                            id = img.Id,
+                            productId = img.ProductId,
+                            hinhAnh = img.HinhAnh
+                        }).ToList()
+                    })
+                    .ToListAsync();
+
+                if (sanPhamTheoDanhMuc == null || !sanPhamTheoDanhMuc.Any())
+                {
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Không tìm thấy sản phẩm nào thuộc danh mục này"
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy danh sách sản phẩm theo danh mục thành công",
+                    data = sanPhamTheoDanhMuc,
+                    total = sanPhamTheoDanhMuc.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi lấy danh sách sản phẩm theo danh mục",
+                    error = ex.Message
+                });
+            }
+        }
+
+        #endregion
+
+        #region Image Operations
+
+        [HttpGet("LayDanhSachHinhAnh/{productId}")]
+        public async Task<IActionResult> LayDanhSachHinhAnh(int productId)
+        {
+            try
+            {
+                var images = await _context.ProductImages
+                    .Where(x => x.ProductId == productId)
+                    .Select(x => new { x.Id, x.HinhAnh })
+                    .ToListAsync();
+
+                return Ok(new { success = true, data = images });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
 
@@ -416,36 +446,74 @@ namespace BE_DACK.Controllers
                 var image = await _context.ProductImages.FindAsync(imageId);
                 if (image == null)
                 {
-                    return NotFound(new { Success = false, Message = "Không tìm thấy hình ảnh" });
+                    return NotFound(new { success = false, message = "Không tìm thấy hình ảnh" });
                 }
-
-                // Xóa ảnh trên Cloudinary (nếu cần)
-                // await _cloudinaryService.DeleteImageAsync(image.HinhAnh);
 
                 _context.ProductImages.Remove(image);
                 await _context.SaveChangesAsync();
 
-                return Ok(new { Success = true, Message = "Xóa hình ảnh thành công" });
+                return Ok(new { success = true, message = "Xóa hình ảnh thành công" });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { Success = false, Message = ex.Message });
+                return BadRequest(new { success = false, message = ex.Message });
             }
         }
 
-        [HttpGet("LayDanhSachHinhAnh/{productId}")]
-        public async Task<IActionResult> LayDanhSachHinhAnh(int productId)
-        {
-            var images = await _context.ProductImages
-                .Where(x => x.ProductId == productId)
-                .Select(x => new { x.Id, x.HinhAnh })
-                .ToListAsync();
+        #endregion
 
-            return Ok(new { Success = true, Data = images });
+        #region Filter and Search Operations
+
+        [HttpGet("KhoangGia")]
+        public async Task<IActionResult> KhoangGia()
+        {
+            try
+            {
+                var sanPham = _context.Products.AsQueryable();
+
+                if (!await sanPham.AnyAsync())
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "Chưa có sản phẩm nào",
+                        data = new
+                        {
+                            giaMin = 0,
+                            giaMax = 0
+                        }
+                    });
+                }
+
+                var giaMin = await sanPham.MinAsync(p => p.Gia);
+                var giaMax = await sanPham.MaxAsync(p => p.Gia);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy khoảng giá thành công",
+                    data = new
+                    {
+                        giaMin = giaMin,
+                        giaMax = giaMax
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi lấy khoảng giá",
+                    error = ex.Message
+                });
+            }
         }
 
         [HttpGet("LocSanPhamTheoGia")]
-        public IActionResult LocSanPhamTheoGia([FromQuery] decimal? giaMin, [FromQuery] decimal? giaMax,
+        public async Task<IActionResult> LocSanPhamTheoGia(
+            [FromQuery] decimal? giaMin, 
+            [FromQuery] decimal? giaMax,
             [FromQuery] int? categoryId)
         {
             try
@@ -455,7 +523,6 @@ namespace BE_DACK.Controllers
                     .Include(p => p.ProductImages)
                     .AsQueryable();
 
-                // Lọc theo khoảng giá
                 if (giaMin.HasValue)
                 {
                     query = query.Where(p => p.Gia >= giaMin.Value);
@@ -466,14 +533,12 @@ namespace BE_DACK.Controllers
                     query = query.Where(p => p.Gia <= giaMax.Value);
                 }
 
-                // Lọc thêm theo danh mục (nếu có)
                 if (categoryId.HasValue)
                 {
                     query = query.Where(p => p.CategoryId == categoryId.Value);
                 }
 
-                // Lấy tất cả sản phẩm, sắp xếp theo giá tăng dần
-                var danhSachSanPham = query
+                var danhSachSanPham = await query
                     .OrderBy(p => p.Gia)
                     .Select(p => new
                     {
@@ -496,7 +561,7 @@ namespace BE_DACK.Controllers
                             url = img.HinhAnh
                         }).ToList()
                     })
-                    .ToList();
+                    .ToListAsync();
 
                 return Ok(new
                 {
@@ -523,61 +588,13 @@ namespace BE_DACK.Controllers
             }
         }
 
-        // API lấy khoảng giá min-max
-        [HttpGet("KhoangGia")]
-        public IActionResult KhoangGia()
-        {
-            try
-            {
-                var sanPham = _context.Products.AsQueryable();
-
-                if (!sanPham.Any())
-                {
-                    return Ok(new
-                    {
-                        success = true,
-                        message = "Chưa có sản phẩm nào",
-                        data = new
-                        {
-                            giaMin = 0,
-                            giaMax = 0
-                        }
-                    });
-                }
-
-                var giaMin = sanPham.Min(p => p.Gia);
-                var giaMax = sanPham.Max(p => p.Gia);
-
-                return Ok(new
-                {
-                    success = true,
-                    message = "Lấy khoảng giá thành công",
-                    data = new
-                    {
-                        giaMin = giaMin,
-                        giaMax = giaMax
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = "Lỗi khi lấy khoảng giá",
-                    error = ex.Message
-                });
-            }
-        }
-
-        // API lọc theo nhiều tiêu chí
         [HttpGet("LocVaTimKiem")]
-        public IActionResult LocVaTimKiem(
+        public async Task<IActionResult> LocVaTimKiem(
             [FromQuery] string? keyword,
             [FromQuery] int? categoryId,
             [FromQuery] decimal? giaMin,
             [FromQuery] decimal? giaMax,
-            [FromQuery] string? sapXep = "gia-tang", // gia-tang, gia-giam, ten-az, ten-za, moi-nhat
+            [FromQuery] string? sapXep = "gia-tang",
             [FromQuery] bool? conHang = null)
         {
             try
@@ -587,7 +604,6 @@ namespace BE_DACK.Controllers
                     .Include(p => p.ProductImages)
                     .AsQueryable();
 
-                // Lọc theo từ khóa
                 if (!string.IsNullOrEmpty(keyword))
                 {
                     keyword = keyword.ToLower().Trim();
@@ -595,46 +611,38 @@ namespace BE_DACK.Controllers
                         || (p.MoTa != null && p.MoTa.ToLower().Contains(keyword)));
                 }
 
-                // Lọc theo danh mục
                 if (categoryId.HasValue)
                 {
                     query = query.Where(p => p.CategoryId == categoryId.Value);
                 }
 
-                // Lọc theo khoảng giá
                 if (giaMin.HasValue)
                 {
                     query = query.Where(p => p.Gia >= giaMin.Value);
                 }
+
                 if (giaMax.HasValue)
                 {
                     query = query.Where(p => p.Gia <= giaMax.Value);
                 }
 
-                // Lọc theo tình trạng hàng
                 if (conHang.HasValue)
                 {
-                    if (conHang.Value)
-                    {
-                        query = query.Where(p => p.SoLuongConLaiTrongKho > 0);
-                    }
-                    else
-                    {
-                        query = query.Where(p => p.SoLuongConLaiTrongKho == 0);
-                    }
+                    query = conHang.Value 
+                        ? query.Where(p => p.SoLuongConLaiTrongKho > 0)
+                        : query.Where(p => p.SoLuongConLaiTrongKho == 0);
                 }
 
-                // Sắp xếp
                 query = sapXep?.ToLower() switch
                 {
                     "gia-giam" => query.OrderByDescending(p => p.Gia),
                     "ten-az" => query.OrderBy(p => p.TenSp),
                     "ten-za" => query.OrderByDescending(p => p.TenSp),
                     "moi-nhat" => query.OrderByDescending(p => p.Id),
-                    _ => query.OrderBy(p => p.Gia) // Mặc định: giá tăng dần
+                    _ => query.OrderBy(p => p.Gia)
                 };
 
-                var danhSachSanPham = query
+                var danhSachSanPham = await query
                     .Select(p => new
                     {
                         id = p.Id,
@@ -656,7 +664,7 @@ namespace BE_DACK.Controllers
                             url = img.HinhAnh
                         }).ToList()
                     })
-                    .ToList();
+                    .ToListAsync();
 
                 return Ok(new
                 {
@@ -685,6 +693,9 @@ namespace BE_DACK.Controllers
                 });
             }
         }
+
+        #endregion
+
         #region Product Reviews
 
         [HttpGet("Review/{productId:int}")]
@@ -800,7 +811,8 @@ namespace BE_DACK.Controllers
                     return StatusCode(403, new { success = false, message = "Bạn cần mua và thanh toán sản phẩm này trước khi đánh giá." });
                 }
 
-                var existingReview = await _context.ProductReviews.FirstOrDefaultAsync(r => r.CustomerId == userId && r.ProductId == productId);
+                var existingReview = await _context.ProductReviews
+                    .FirstOrDefaultAsync(r => r.CustomerId == userId && r.ProductId == productId);
                 if (existingReview != null)
                 {
                     return BadRequest(new { success = false, message = "Bạn đã đánh giá sản phẩm này. Vui lòng chỉnh sửa đánh giá hiện tại." });
@@ -905,7 +917,7 @@ namespace BE_DACK.Controllers
 
         #endregion
 
-        #region Favorite Products
+        #region Favorite Products (SẢN PHẨM YÊU THÍCH - OPTIMIZED)
 
         [Authorize]
         [HttpGet("YeuThich")]
@@ -915,21 +927,22 @@ namespace BE_DACK.Controllers
             {
                 var userId = GetUserIdFromToken();
                 if (!userId.HasValue)
-            {
+                {
                     return Unauthorized(new { success = false, message = "Không thể xác định người dùng từ token." });
                 }
 
                 var danhSach = await _context.SanPhamYeuThiches
                     .Where(x => x.IdCustomer == userId)
+                    .Where(x => x.IdProductNavigation != null)
                     .Include(x => x.IdProductNavigation)
-                        .ThenInclude(p => p.ProductImages)
+                        .ThenInclude(p => p!.ProductImages)
                     .OrderByDescending(x => x.Id)
                     .Select(x => new SanPhamYeuThichResponse
                     {
                         Id = x.Id,
                         IdCustomer = x.IdCustomer ?? 0,
                         IdProduct = x.IdProduct ?? 0,
-                        TenSp = x.IdProductNavigation.TenSp,
+                        TenSp = x.IdProductNavigation!.TenSp,
                         Gia = x.IdProductNavigation.Gia,
                         MoTa = x.IdProductNavigation.MoTa,
                         SoLuongConLai = x.IdProductNavigation.SoLuongConLaiTrongKho,
@@ -943,25 +956,27 @@ namespace BE_DACK.Controllers
                 return Ok(new
                 {
                     success = true,
+                    message = "Lấy danh sách yêu thích thành công",
                     total = danhSach.Count,
                     data = danhSach
                 });
             }
             catch (Exception ex)
-                {
+            {
                 return StatusCode(500, new
-                    {
+                {
                     success = false,
                     message = "Lỗi khi lấy danh sách sản phẩm yêu thích",
                     error = ex.Message
-                    });
-                }
+                });
+            }
         }
 
         [Authorize]
         [HttpPost("YeuThich/{productId:int}")]
         public async Task<IActionResult> ThemYeuThich(int productId)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 var userId = GetUserIdFromToken();
@@ -992,6 +1007,7 @@ namespace BE_DACK.Controllers
 
                 _context.SanPhamYeuThiches.Add(yeuThich);
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 return Ok(new
                 {
@@ -1002,6 +1018,7 @@ namespace BE_DACK.Controllers
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return StatusCode(500, new
                 {
                     success = false,
@@ -1015,6 +1032,7 @@ namespace BE_DACK.Controllers
         [HttpDelete("YeuThich/{productId:int}")]
         public async Task<IActionResult> XoaYeuThich(int productId)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 var userId = GetUserIdFromToken();
@@ -1033,11 +1051,13 @@ namespace BE_DACK.Controllers
 
                 _context.SanPhamYeuThiches.Remove(yeuThich);
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 return Ok(new { success = true, message = "Đã xóa khỏi danh sách yêu thích." });
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return StatusCode(500, new
                 {
                     success = false,
@@ -1051,19 +1071,20 @@ namespace BE_DACK.Controllers
         [HttpPost("YeuThich/Toggle/{productId:int}")]
         public async Task<IActionResult> ToggleYeuThich(int productId)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 var userId = GetUserIdFromToken();
                 if (!userId.HasValue)
                 {
                     return Unauthorized(new { success = false, message = "Không thể xác định người dùng từ token." });
-            }
+                }
 
                 var product = await _context.Products.FindAsync(productId);
                 if (product == null)
-            {
+                {
                     return NotFound(new { success = false, message = "Không tìm thấy sản phẩm." });
-            }
+                }
 
                 var existing = await _context.SanPhamYeuThiches
                     .FirstOrDefaultAsync(x => x.IdCustomer == userId && x.IdProduct == productId);
@@ -1085,10 +1106,11 @@ namespace BE_DACK.Controllers
                     isFavorite = true;
                 }
 
-                    await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
-                    return Ok(new
-                    {
+                return Ok(new
+                {
                     success = true,
                     message = isFavorite ? "Đã thêm vào danh sách yêu thích." : "Đã xóa khỏi danh sách yêu thích.",
                     isFavorite
@@ -1096,6 +1118,7 @@ namespace BE_DACK.Controllers
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return StatusCode(500, new
                 {
                     success = false,
@@ -1133,23 +1156,43 @@ namespace BE_DACK.Controllers
             }
         }
 
-        #endregion
+        [Authorize]
+        [HttpGet("YeuThich/Count")]
+        public async Task<IActionResult> DemSanPhamYeuThich()
+        {
+            try
+            {
+                var userId = GetUserIdFromToken();
+                if (!userId.HasValue)
+                {
+                    return Unauthorized(new { success = false, message = "Không thể xác định người dùng từ token." });
+                }
 
+                var count = await _context.SanPhamYeuThiches
+                    .CountAsync(x => x.IdCustomer == userId);
+
+                return Ok(new { success = true, count });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi đếm sản phẩm yêu thích",
+                    error = ex.Message
+                });
+            }
+        }
+
+        #endregion
     }
-    /*public class ProductCreateDto
-    {
-        public string TenSp { get; set; } = null!;
-        public string? MoTa { get; set; }
-        public decimal Gia { get; set; }
-        public int SoLuongConLaiTrongKho { get; set; }
-        public int? CategoryId { get; set; }
-        public string? ImageUrl { get; set; }
-    }*/
-    // Model cho Thêm mới
+
+    #region Request/Response Models
+
     public class ThemSanPhamRequest
     {
         [Required(ErrorMessage = "Tên sản phẩm là bắt buộc")]
-        public string TenSp { get; set; }
+        public string TenSp { get; set; } = null!;
 
         public string? MoTa { get; set; }
 
@@ -1164,10 +1207,9 @@ namespace BE_DACK.Controllers
         public int? CategoryId { get; set; }
 
         [Required(ErrorMessage = "Vui lòng chọn ít nhất 1 hình ảnh")]
-        public List<IFormFile> HinhAnh { get; set; }
+        public List<IFormFile> HinhAnh { get; set; } = new();
     }
 
-    // Model cho Cập nhật - CHỈ CẦN ID
     public class SuaSanPhamRequest
     {
         [Required(ErrorMessage = "ID sản phẩm là bắt buộc")]
@@ -1185,21 +1227,19 @@ namespace BE_DACK.Controllers
 
         public int? CategoryId { get; set; }
 
-        // Null = không thêm ảnh mới
         public List<IFormFile>? HinhAnh { get; set; }
     }
 
-    // Response
     public class SanPhamYeuThichResponse
     {
         public int Id { get; set; }
         public int IdCustomer { get; set; }
-        public long IdProduct { get; set; }
-        public string TenSp { get; set; }
-        public decimal Gia { get; set; }
+        public int IdProduct { get; set; }
+        public string TenSp { get; set; } = string.Empty;
+        public decimal? Gia { get; set; }
         public string? HinhAnhDaiDien { get; set; }
         public string? MoTa { get; set; }
-        public int SoLuongConLai { get; set; }
+        public int? SoLuongConLai { get; set; }
     }
 
     public class ProductReviewRequest
@@ -1221,4 +1261,6 @@ namespace BE_DACK.Controllers
         public string? Content { get; set; }
         public DateTime CreatedAt { get; set; }
     }
+
+    #endregion
 }

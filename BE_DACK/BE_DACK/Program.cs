@@ -11,10 +11,8 @@ using WebAppDoCongNghe.Service;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
 builder.Services.AddDbContext<DACKContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Connection")));
-
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
@@ -39,26 +37,20 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Cấu hình Cloudinary
 builder.Services.Configure<CloudinarySettings>(
-builder.Configuration.GetSection("CloudinarySettings"));
+    builder.Configuration.GetSection("CloudinarySettings"));
+
 builder.Services.AddSingleton(provider =>
 {
     var config = provider.GetRequiredService<
         Microsoft.Extensions.Options.IOptions<CloudinarySettings>>().Value;
-
     var account = new Account(config.CloudName, config.ApiKey, config.ApiSecret);
     return new Cloudinary(account);
 });
 
-// Đăng ký CloudinaryService
 builder.Services.AddScoped<ICloudinaryService, Cloud>();
-
 builder.Services.Configure<VNPaySettings>(builder.Configuration.GetSection("VNPay"));
 builder.Services.AddSingleton<IVnpay, Vnpay>();
-
-
-
 
 builder.Services.AddCors(options =>
 {
@@ -70,7 +62,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -80,7 +71,6 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API DACK"
     });
 
-    
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = @"JWT Authorization header sử dụng Bearer.  
@@ -112,21 +102,26 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddControllers();
 
-
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+// CORS phải được đặt trước các middleware khác
 app.UseCors("AllowAll");
-app.UseHttpsRedirection();
 
-app.UseAuthentication(); 
+// Routing và Authentication
+app.UseRouting();
+
+app.UseAuthentication();
 app.UseAuthorization();
 
+// Map controllers
 app.MapControllers();
+
+// Swagger phải được đặt sau MapControllers
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "BE_DACK API v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.Run();

@@ -22,8 +22,10 @@ function resolveImageUrl(path) {
 }
 
 function getProductImage(item) {
-  if (item.HinhAnhDaiDien) {
-    return resolveImageUrl(item.HinhAnhDaiDien);
+  // Ưu tiên PascalCase (API mặc định), fallback về camelCase (tương thích)
+  const imageUrl = item.HinhAnhDaiDien ?? item.hinhAnhDaiDien;
+  if (imageUrl) {
+    return resolveImageUrl(imageUrl);
   }
   if (item.hinhAnh && Array.isArray(item.hinhAnh) && item.hinhAnh.length) {
     const first = item.hinhAnh[0];
@@ -76,30 +78,38 @@ async function loadFavorites() {
 function renderFavorites(list) {
   container.innerHTML = list
     .map(item => {
+      // Ưu tiên PascalCase (API mặc định), fallback về camelCase (tương thích)
+      const productId = item.IdProduct ?? item.idProduct ?? item.id ?? 0;
+      const productName = item.TenSp ?? item.tenSp ?? "Sản phẩm";
+      const productPrice = item.Gia ?? item.gia ?? null;
+      const productDescription = item.MoTa ?? item.moTa ?? null;
+      const stockQuantity = item.SoLuongConLai ?? item.soLuongConLai ?? 0;
+      
       const imageUrl = getProductImage(item);
-      const inStock = item.SoLuongConLai > 0;
-      const stockText = inStock ? `Còn hàng (${item.SoLuongConLai})` : "Hết hàng";
+      const inStock = stockQuantity > 0;
+      const stockText = inStock ? `Còn hàng (${stockQuantity})` : "Hết hàng";
+      
       return `
-        <div class="col-12 col-md-6 col-lg-4" data-product-id="${item.IdProduct}">
+        <div class="col-12 col-md-6 col-lg-4" data-product-id="${productId}">
           <div class="favorite-card h-100 d-flex flex-column">
             <div class="favorite-card-image position-relative">
-              <img src="${imageUrl}" alt="${item.TenSp}" class="img-fluid" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
-              <button type="button" class="favorite-btn active remove-favorite-btn" data-product-id="${item.IdProduct}" aria-label="Bỏ khỏi yêu thích" aria-pressed="true">
+              <img src="${imageUrl}" alt="${productName}" class="img-fluid" onerror="this.onerror=null;this.src='${FALLBACK_IMAGE}'">
+              <button type="button" class="favorite-btn active remove-favorite-btn" data-product-id="${productId}" aria-label="Bỏ khỏi yêu thích" aria-pressed="true">
                 <i class="fas fa-heart"></i>
               </button>
             </div>
             <div class="favorite-card-body flex-grow-1 d-flex flex-column">
-              <h4 class="favorite-title">${item.TenSp}</h4>
-              <p class="favorite-description text-muted">${item.MoTa ? item.MoTa.substring(0, 120) + (item.MoTa.length > 120 ? "..." : "") : "Chưa có mô tả chi tiết."}</p>
+              <h4 class="favorite-title">${productName}</h4>
+              <p class="favorite-description text-muted">${productDescription ? productDescription.substring(0, 120) + (productDescription.length > 120 ? "..." : "") : "Chưa có mô tả chi tiết."}</p>
               <div class="favorite-price mb-2">
-                <strong>${formatPrice(item.Gia)}</strong>
+                <strong>${formatPrice(productPrice)}</strong>
               </div>
               <span class="${inStock ? "text-success" : "text-danger"} small mb-3 d-block">${stockText}</span>
               <div class="mt-auto d-flex gap-2 flex-wrap">
-                <button class="btn btn-primary btn-sm add-to-cart-favorite" data-product-id="${item.IdProduct}" ${inStock ? "" : "disabled"}>
+                <button class="btn btn-primary btn-sm add-to-cart-favorite" data-product-id="${productId}" ${inStock ? "" : "disabled"}>
                   <i class="fas fa-cart-plus me-1"></i> Thêm vào giỏ
                 </button>
-                <button class="btn btn-outline-secondary btn-sm remove-favorite-btn" data-product-id="${item.IdProduct}">
+                <button class="btn btn-outline-secondary btn-sm remove-favorite-btn" data-product-id="${productId}">
                   <i class="fas fa-times me-1"></i> Bỏ yêu thích
                 </button>
               </div>
@@ -163,6 +173,9 @@ async function addToCart(productId) {
     });
     if (response.data?.success) {
       alert("✅ Đã thêm sản phẩm vào giỏ hàng!");
+      if (window.refreshCartBadge) {
+        window.refreshCartBadge();
+      }
     } else {
       alert(response.data?.message || "Không thể thêm vào giỏ hàng.");
     }

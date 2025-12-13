@@ -255,6 +255,32 @@ public partial class DACKContext : DbContext
             entity.Property(e => e.TongSoLuongXuat).HasDefaultValue(0);
             entity.Property(e => e.TongSoTon).HasDefaultValue(0);
         });
+        modelBuilder.Entity<SanPhamYeuThich>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__SanPhamYeuThich__3214EC07");
+
+            entity.ToTable("SanPhamYeuThich");
+
+            
+            entity.HasIndex(e => new { e.IdCustomer, e.IdProduct })
+                .IsUnique()
+                .HasDatabaseName("IX_SanPhamYeuThich_Customer_Product");
+
+            
+            entity.HasOne(d => d.IdCustomerNavigation)
+                .WithMany()
+                .HasForeignKey(d => d.IdCustomer)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_SanPhamYeuThich_Customer");
+
+            
+            entity.HasOne(d => d.IdProductNavigation)
+                .WithMany()
+                .HasForeignKey(d => d.IdProduct)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_SanPhamYeuThich_Product");
+        });
+
 
         OnModelCreatingPartial(modelBuilder);
     }

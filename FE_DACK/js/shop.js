@@ -358,6 +358,9 @@ async function addToCart(productId, quantity = 1) {
 
     if (response.data && response.data.success) {
       alert("✅ Đã thêm sản phẩm vào giỏ hàng!");
+      if (window.refreshCartBadge) {
+        window.refreshCartBadge();
+      }
       // Đóng modal nếu đang mở
       const modal = document.getElementById("product-detail-modal");
       if (modal) {

@@ -340,6 +340,9 @@ async function addToCart(productId, options = {}) {
       } else {
         alert("✅ Đã thêm sản phẩm vào giỏ hàng!");
       }
+      if (window.refreshCartBadge) {
+        window.refreshCartBadge();
+      }
     } else {
       alert("❌ Lỗi: " + (response.data?.message || "Không thể thêm vào giỏ hàng"));
     }

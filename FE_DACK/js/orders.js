@@ -235,7 +235,7 @@ function renderOrderDetailContent(order) {
             <h6 class="text-uppercase text-muted small mb-3">Thông tin đơn hàng</h6>
             <p class="mb-1"><strong>Tổng giá trị:</strong> <span class="text-primary h5 mb-0">${formatPrice(order.tongGiaTri)}</span></p>
             <p class="mb-1"><strong>Số lượng sản phẩm:</strong> ${order.soLuongSanPham || products.length}</p>
-            <p class="mb-0"><strong>Thanh toán:</strong> ${order.phuongThucThanhToan || "Đang cập nhật"}</p>
+            <p class="mb-0"><strong>Thanh toán:</strong> ${order.thanhToan?.thongTin || order.phuongThucThanhToan || "Chưa thanh toán"}</p>
           </div>
         </div>
       </div>

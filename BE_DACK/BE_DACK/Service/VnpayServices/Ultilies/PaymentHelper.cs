@@ -55,7 +55,22 @@ namespace VNPAY.NET.Utilities
 
             var rspRaw = GetResponseData();
             var checksum = Encoder.AsHmacSHA512(secretKey, rspRaw);
-            return checksum.Equals(inputHash, StringComparison.InvariantCultureIgnoreCase);
+            
+            // So sánh không phân biệt hoa thường
+            bool isValid = checksum.Equals(inputHash, StringComparison.InvariantCultureIgnoreCase);
+            
+            // Debug: Log nếu chữ ký không hợp lệ (chỉ trong development)
+            #if DEBUG
+            if (!isValid)
+            {
+                System.Diagnostics.Debug.WriteLine($"VNPAY Signature Check Failed:");
+                System.Diagnostics.Debug.WriteLine($"  Input Hash: {inputHash}");
+                System.Diagnostics.Debug.WriteLine($"  Calculated Hash: {checksum}");
+                System.Diagnostics.Debug.WriteLine($"  Raw Data: {rspRaw}");
+            }
+            #endif
+            
+            return isValid;
         }
         internal string GetResponseData()
         {

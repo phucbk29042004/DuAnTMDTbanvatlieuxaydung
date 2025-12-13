@@ -148,8 +148,9 @@ namespace BE_DACK.Controllers
                 var donHang = await _context.Orders
                     .Include(o => o.OrderDetails)
                         .ThenInclude(d => d.Product)
-                            .ThenInclude(p => p.ProductImages) // Thêm dòng này
+                            .ThenInclude(p => p.ProductImages)
                     .Include(o => o.Customer)
+                    .Include(o => o.Payments)
                     .FirstOrDefaultAsync(o => o.Id == orderId && o.CustomerId == userId);
 
                 if (donHang == null)
@@ -173,6 +174,44 @@ namespace BE_DACK.Controllers
                     trangThai = d.TrangThai
                 }).ToList();
 
+                // Tính toán thông tin thanh toán
+                var successfulStatuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "Thành công", "Thanh toán COD", "COD", "Thanh toán thành công"
+                };
+                
+                var successfulPayments = donHang.Payments
+                    .Where(p => p.TrangThai != null && successfulStatuses.Contains(p.TrangThai))
+                    .ToList();
+                
+                var tongDaThanhToan = successfulPayments.Sum(p => p.SoTienThanhToan);
+                var conLai = donHang.TongGiaTriDonHang - tongDaThanhToan;
+                
+                // Lấy phương thức thanh toán từ giao dịch thành công gần nhất
+                var phuongThucThanhToan = successfulPayments
+                    .OrderByDescending(p => p.NgayThanhToan)
+                    .Select(p => p.PhuongThucThanhToan)
+                    .FirstOrDefault();
+                
+                // Tạo mô tả thanh toán
+                string thanhToanInfo = "";
+                if (tongDaThanhToan >= donHang.TongGiaTriDonHang)
+                {
+                    thanhToanInfo = phuongThucThanhToan != null 
+                        ? $"Đã thanh toán đủ ({phuongThucThanhToan})" 
+                        : "Đã thanh toán đủ";
+                }
+                else if (tongDaThanhToan > 0)
+                {
+                    thanhToanInfo = phuongThucThanhToan != null
+                        ? $"Đã thanh toán {tongDaThanhToan:N0}đ ({phuongThucThanhToan}), còn lại {conLai:N0}đ"
+                        : $"Đã thanh toán {tongDaThanhToan:N0}đ, còn lại {conLai:N0}đ";
+                }
+                else
+                {
+                    thanhToanInfo = "Chưa thanh toán";
+                }
+
                 return Ok(new
                 {
                     success = true,
@@ -190,7 +229,15 @@ namespace BE_DACK.Controllers
                             sdt = donHang.Customer?.Sdt,
                             diaChi = donHang.Customer?.DiaChi
                         },
-                        sanPham = chiTiet
+                        sanPham = chiTiet,
+                        soLuongSanPham = chiTiet.Count,
+                        thanhToan = new
+                        {
+                            tongDaThanhToan = tongDaThanhToan,
+                            conLai = conLai,
+                            phuongThucThanhToan = phuongThucThanhToan,
+                            thongTin = thanhToanInfo
+                        }
                     }
                 });
             }

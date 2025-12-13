@@ -24,7 +24,11 @@ export async function fetchFavoriteIds() {
   const list = await fetchFavoriteList();
   return new Set(
     list
-      .map(item => Number(item.IdProduct ?? item.idProduct ?? item.id) || 0)
+      .map(item => {
+        // Ưu tiên PascalCase (API mặc định), fallback về camelCase và id
+        const productId = item.IdProduct ?? item.idProduct ?? item.id ?? 0;
+        return Number(productId) || 0;
+      })
       .filter(Boolean)
   );
 }
