@@ -345,7 +345,7 @@ namespace BE_DACK.Controllers
                     {
                         detail.Product.SoLuongConLaiTrongKho += detail.SoLuongSp;
                     }
-                }
+                }//
 
                 // Cập nhật trạng thái
                 donHang.TrangThai = "Đã hủy";
