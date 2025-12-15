@@ -449,5 +449,110 @@ namespace BE_DACK.Controllers
             }
         }
 
+        // Lấy thông tin đơn hàng đầy đủ cho hóa đơn (Admin)
+        [HttpGet("ChiTietDonHangChoHoaDon/{orderId}")]
+        [Authorize]
+        public async Task<IActionResult> ChiTietDonHangChoHoaDon(int orderId)
+        {
+            try
+            {
+                var isAdminClaim = User.Claims.FirstOrDefault(c => c.Type == "isAdmin");
+                if (isAdminClaim == null || isAdminClaim.Value != "True")
+                {
+                    return StatusCode(403, new { success = false, message = "Bạn không có quyền truy cập chức năng này" });
+                }
+
+                var donHang = await _context.Orders
+                    .Include(o => o.OrderDetails)
+                        .ThenInclude(d => d.Product)
+                            .ThenInclude(p => p.ProductImages)
+                    .Include(o => o.Customer)
+                    .Include(o => o.Payments)
+                    .FirstOrDefaultAsync(o => o.Id == orderId);
+
+                if (donHang == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy đơn hàng." });
+                }
+
+                var chiTiet = donHang.OrderDetails.Select(d => new
+                {
+                    productId = d.ProductId,
+                    tenSp = d.Product?.TenSp ?? "N/A",
+                    gia = d.Gia,
+                    soLuong = d.SoLuongSp,
+                    thanhTien = d.SoLuongSp * d.Gia,
+                    hinhAnh = (d.Product?.ProductImages ?? Enumerable.Empty<ProductImage>())
+                        .Select(img => new
+                        {
+                            id = img.Id,
+                            url = img.HinhAnh
+                        }).ToList()
+                }).ToList();
+
+                // Tính toán thông tin thanh toán
+                var successfulStatuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    "Thành công", "Thanh toán COD", "COD", "Thanh toán thành công"
+                };
+                
+                var successfulPayments = donHang.Payments
+                    .Where(p => p.TrangThai != null && successfulStatuses.Contains(p.TrangThai))
+                    .OrderByDescending(p => p.NgayThanhToan)
+                    .ToList();
+                
+                var tongDaThanhToan = successfulPayments.Sum(p => p.SoTienThanhToan);
+                var conLai = donHang.TongGiaTriDonHang - tongDaThanhToan;
+                
+                var lichSuThanhToan = donHang.Payments
+                    .OrderByDescending(p => p.NgayThanhToan)
+                    .Select(p => new
+                    {
+                        ngayThanhToan = p.NgayThanhToan,
+                        soTien = p.SoTienThanhToan,
+                        phuongThuc = p.PhuongThucThanhToan,
+                        trangThai = p.TrangThai
+                    }).ToList();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Lấy thông tin đơn hàng cho hóa đơn thành công.",
+                    data = new
+                    {
+                        orderId = donHang.Id,
+                        ngayTao = donHang.NgayTaoDonHang,
+                        tongGiaTri = donHang.TongGiaTriDonHang,
+                        trangThai = donHang.TrangThai,
+                        khachHang = new
+                        {
+                            hoTen = donHang.Customer?.HoTen ?? "N/A",
+                            email = donHang.Customer?.Email ?? "N/A",
+                            sdt = donHang.Customer?.Sdt ?? "N/A",
+                            diaChi = donHang.Customer?.DiaChi ?? "N/A"
+                        },
+                        sanPham = chiTiet,
+                        soLuongSanPham = chiTiet.Count,
+                        thanhToan = new
+                        {
+                            tongDaThanhToan = tongDaThanhToan,
+                            conLai = conLai,
+                            lichSuThanhToan = lichSuThanhToan,
+                            phuongThucThanhToan = successfulPayments.Count > 0 ? successfulPayments[0].PhuongThucThanhToan : null
+                        }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi lấy thông tin đơn hàng cho hóa đơn.",
+                    error = ex.Message
+                });
+            }
+        }
+
     }
 }

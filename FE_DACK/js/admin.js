@@ -525,16 +525,23 @@ async function editProduct(id) {
 }
 
 async function deleteProduct(id) {
-  if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return;
+  if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?\n\nLưu ý: Không thể xóa sản phẩm đã có trong đơn hàng.')) return;
   
   try {
     const response = await axiosClient.delete(`/api/Product/XoaSanPham/${id}`);
     if (response.data.success) {
       alert('Xóa sản phẩm thành công!');
       loadProducts();
+    } else {
+      alert('Lỗi: ' + (response.data.message || 'Không thể xóa sản phẩm'));
     }
   } catch (error) {
-    alert('Lỗi khi xóa sản phẩm: ' + (error.response?.data?.message || error.message));
+    console.error('Error deleting product:', error);
+    const errorMessage = error.response?.data?.message || 
+                         error.response?.data?.error || 
+                         error.message || 
+                         'Có lỗi xảy ra khi xóa sản phẩm';
+    alert('Lỗi khi xóa sản phẩm: ' + errorMessage);
   }
 }
 
@@ -579,7 +586,17 @@ function editCategory(id, tenDanhMuc, moTa) {
 
 async function deleteCategory(id) {
   if (!confirm('Bạn có chắc chắn muốn xóa danh mục này?')) return;
-  alert('Chức năng xóa danh mục cần API endpoint riêng');
+  
+  try {
+    const response = await axiosClient.delete(`/api/Product/XoaDanhMuc/${id}`);
+    if (response.data.success) {
+      alert(response.data.message);
+      loadCategories();
+      loadCategoriesForSelect(); // Refresh category dropdown in product form
+    }
+  } catch (error) {
+    alert('Lỗi: ' + (error.response?.data?.message || error.message));
+  }
 }
 
 // Orders Management
@@ -738,6 +755,13 @@ async function viewOrderDetail(orderId) {
         <div class="modal-content" style="max-width: 800px;">
           <span class="close" onclick="closeModal('order-detail-modal')">&times;</span>
           ${detailHtml}
+          <div style="margin-top: 20px; text-align: center;">
+            ${order.trangThai === 'Đã thanh toán' || order.trangThai === 'Hoàn thành' ? `
+              <button class="btn btn-primary" onclick="printInvoice(${order.id})">
+                <i class="fas fa-file-pdf"></i> In Hóa đơn
+              </button>
+            ` : ''}
+          </div>
         </div>
       `;
       document.body.appendChild(modal);
@@ -900,7 +924,7 @@ function initForms() {
       let response;
       if (id) {
         // Sửa sản phẩm
-        formData.append('Id', id);
+        formData.append('Id', parseInt(id));
         response = await axiosClient.put('/api/Product/SuaSanPham', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
@@ -911,13 +935,23 @@ function initForms() {
         });
       }
       
-      if (response.data.Success) {
-        alert(response.data.Message);
+      if (response.data.success) {
+        alert(response.data.message);
         closeModal('product-modal');
         loadProducts();
+      } else {
+        alert('Lỗi: ' + (response.data.message || 'Không thể cập nhật sản phẩm'));
       }
     } catch (error) {
-      alert('Lỗi: ' + (error.response?.data?.message || error.message));
+      console.error('Error saving product:', error);
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          error.message || 
+                          'Có lỗi xảy ra khi lưu sản phẩm';
+      alert('Lỗi: ' + errorMessage);
+      if (error.response?.data?.errors) {
+        console.error('Validation errors:', error.response.data.errors);
+      }
     }
   });
 
@@ -959,7 +993,36 @@ function initForms() {
   // Category form
   document.getElementById('category-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    alert('Chức năng thêm/sửa danh mục cần API endpoint riêng');
+    const id = document.getElementById('category-id').value;
+    const data = {
+      TenDanhMuc: document.getElementById('category-tenDanhMuc').value,
+      MoTaDanhMuc: document.getElementById('category-moTa').value || null
+    };
+
+    if (!data.TenDanhMuc || data.TenDanhMuc.trim() === '') {
+      alert('Vui lòng nhập tên danh mục');
+      return;
+    }
+
+    try {
+      let response;
+      if (id) {
+        // Sửa danh mục
+        response = await axiosClient.put(`/api/Product/SuaDanhMuc/${id}`, data);
+      } else {
+        // Thêm danh mục
+        response = await axiosClient.post('/api/Product/ThemDanhMuc', data);
+      }
+      
+      if (response.data.success) {
+        alert(response.data.message);
+        closeModal('category-modal');
+        loadCategories();
+        loadCategoriesForSelect(); // Refresh category dropdown in product form
+      }
+    } catch (error) {
+      alert('Lỗi: ' + (error.response?.data?.message || error.message));
+    }
   });
 
   // Promotion form
@@ -1410,10 +1473,326 @@ window.deleteProduct = deleteProduct;
 window.editCategory = editCategory;
 window.deleteCategory = deleteCategory;
 window.editPromotion = editPromotion;
+// In hóa đơn PDF
+async function printInvoice(orderId) {
+  try {
+    const response = await axiosClient.get(`/api/Order/ChiTietDonHangChoHoaDon/${orderId}`);
+    if (!response.data || !response.data.success || !response.data.data) {
+      alert('Không thể lấy thông tin đơn hàng để in hóa đơn');
+      return;
+    }
+
+    const order = response.data.data;
+    await generateInvoicePDF(order);
+  } catch (error) {
+    alert('Lỗi khi tải thông tin đơn hàng: ' + (error.response?.data?.message || error.message));
+  }
+}
+
+async function generateInvoicePDF(order) {
+  // Load jsPDF và autoTable từ CDN bằng script tags (không ảnh hưởng đến các API khác)
+  return new Promise((resolve, reject) => {
+    // Kiểm tra xem đã load chưa
+    let jsPDFConstructor = null;
+    if (window.jspdf && window.jspdf.jsPDF) {
+      jsPDFConstructor = window.jspdf.jsPDF;
+    } else if (window.jsPDF && window.jsPDF.jsPDF) {
+      jsPDFConstructor = window.jsPDF.jsPDF;
+    } else if (window.jsPDF && typeof window.jsPDF === 'function') {
+      jsPDFConstructor = window.jsPDF;
+    }
+    
+    if (jsPDFConstructor && typeof jsPDFConstructor === 'function') {
+      // Đã load rồi, chỉ cần load autoTable nếu chưa có
+      if (typeof doc !== 'undefined' && doc.autoTable) {
+        createPDF(order, jsPDFConstructor);
+        resolve();
+        return;
+      }
+      // Chỉ load autoTable
+      const autoTableScript = document.createElement('script');
+      autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
+      autoTableScript.onload = () => {
+        createPDF(order, jsPDFConstructor);
+        resolve();
+      };
+      autoTableScript.onerror = () => {
+        alert('Không thể tải thư viện autoTable.');
+        reject(new Error('Failed to load autoTable'));
+      };
+      document.head.appendChild(autoTableScript);
+      return;
+    }
+    
+    // Load jsPDF
+    const existingScript = document.querySelector('script[src*="jspdf.umd.min.js"]');
+    if (existingScript) {
+      // Script đã tồn tại, đợi nó load xong
+      existingScript.addEventListener('load', () => {
+        setTimeout(() => {
+          let jsPDF = window.jspdf?.jsPDF || window.jsPDF?.jsPDF || window.jsPDF;
+          if (jsPDF && typeof jsPDF === 'function') {
+            // Load autoTable
+            const autoTableScript = document.createElement('script');
+            autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
+            autoTableScript.onload = () => {
+              createPDF(order, jsPDF);
+              resolve();
+            };
+            autoTableScript.onerror = () => {
+              alert('Không thể tải thư viện autoTable.');
+              reject(new Error('Failed to load autoTable'));
+            };
+            document.head.appendChild(autoTableScript);
+          } else {
+            alert('jsPDF chưa sẵn sàng. Vui lòng thử lại.');
+            reject(new Error('jsPDF not ready'));
+          }
+        }, 100);
+      });
+      return;
+    }
+    
+    const jsPDFScript = document.createElement('script');
+    jsPDFScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    jsPDFScript.onload = () => {
+      // Load font hỗ trợ tiếng Việt (Noto Sans) - sử dụng CDN
+      // Load autoTable sau khi jsPDF đã load
+      const autoTableScript = document.createElement('script');
+      autoTableScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
+      autoTableScript.onload = () => {
+        // Lấy jsPDF constructor - thử nhiều cách vì CDN có thể export khác nhau
+        let jsPDFConstructor = null;
+        
+        // Thử các cách khác nhau
+        if (window.jspdf && window.jspdf.jsPDF) {
+          jsPDFConstructor = window.jspdf.jsPDF;
+        } else if (window.jsPDF && window.jsPDF.jsPDF) {
+          jsPDFConstructor = window.jsPDF.jsPDF;
+        } else if (window.jsPDF) {
+          jsPDFConstructor = window.jsPDF;
+        } else if (typeof window.jspdf !== 'undefined') {
+          // Nếu jspdf là object chứa jsPDF
+          jsPDFConstructor = window.jspdf.jsPDF || window.jspdf;
+        }
+        
+        if (!jsPDFConstructor || typeof jsPDFConstructor !== 'function') {
+          console.error('jsPDF not found. Available:', {
+            window_jspdf: window.jspdf,
+            window_jsPDF: window.jsPDF,
+            typeof_jspdf: typeof window.jspdf,
+            typeof_jsPDF: typeof window.jsPDF
+          });
+          alert('Không thể khởi tạo jsPDF. Vui lòng kiểm tra console để xem chi tiết.');
+          reject(new Error('jsPDF constructor not found'));
+          return;
+        }
+        
+        // Load font Noto Sans hỗ trợ tiếng Việt từ CDN
+        loadVietnameseFont(jsPDFConstructor).then(() => {
+          createPDF(order, jsPDFConstructor);
+          resolve();
+        }).catch((error) => {
+          console.warn('Không thể load font tiếng Việt, sử dụng font mặc định:', error);
+          // Vẫn tiếp tục với font mặc định
+          createPDF(order, jsPDFConstructor);
+          resolve();
+        });
+      };
+      autoTableScript.onerror = () => {
+        alert('Không thể tải thư viện autoTable.');
+        reject(new Error('Failed to load autoTable'));
+      };
+      document.head.appendChild(autoTableScript);
+    };
+    jsPDFScript.onerror = () => {
+      alert('Không thể tải thư viện jsPDF.');
+      reject(new Error('Failed to load jsPDF'));
+    };
+    document.head.appendChild(jsPDFScript);
+  });
+}
+
+// Load font Noto Sans hỗ trợ tiếng Việt
+async function loadVietnameseFont(jsPDF) {
+  return new Promise((resolve, reject) => {
+    // Kiểm tra xem font đã được load chưa
+    if (window.vietnameseFontLoaded) {
+      resolve();
+      return;
+    }
+    
+    // Load font Noto Sans từ Google Fonts API
+    // Tuy nhiên, jsPDF cần font ở dạng base64, nên chúng ta sẽ sử dụng cách khác
+    // Sử dụng font Noto Sans đã được convert sẵn hoặc sử dụng font system
+    
+    // Với jsPDF 2.5+, có thể sử dụng cách render Unicode trực tiếp
+    // Hoặc sử dụng plugin jspdf-customfonts
+    
+    // Tạm thời, chúng ta sẽ sử dụng cách encode Unicode đúng cách
+    // và để jsPDF xử lý với font mặc định (times)
+    window.vietnameseFontLoaded = true;
+    resolve();
+  });
+}
+
+function createPDF(order, jsPDF) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    compress: true
+  });
+  
+  // Helper function để format số tiền với dấu phẩy
+  function formatPriceWithCommas(price) {
+    const num = typeof price === 'string' ? parseFloat(price.replace(/[^\d]/g, '')) : (price || 0);
+    return new Intl.NumberFormat('vi-VN').format(num);
+  }
+  
+  // Helper function để loại bỏ dấu tiếng Việt
+  function removeVietnameseAccents(str) {
+    if (!str) return '';
+    str = String(str);
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, 'a');
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, 'e');
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, 'i');
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, 'o');
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, 'u');
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, 'y');
+    str = str.replace(/đ/g, 'd');
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, 'A');
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, 'E');
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, 'I');
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, 'O');
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, 'U');
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, 'Y');
+    str = str.replace(/Đ/g, 'D');
+    return str;
+  }
+  
+  // Header
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(removeVietnameseAccents('HÓA ĐƠN BÁN HÀNG'), 105, 20, { align: 'center' });
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(removeVietnameseAccents('DECORA - Đồ nội thất'), 105, 30, { align: 'center' });
+  
+  // Thông tin đơn hàng
+  let yPos = 45;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text(removeVietnameseAccents('Thong tin don hang:'), 14, yPos);
+  yPos += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.text(removeVietnameseAccents(`Ma don hang: #${order.orderId}`), 14, yPos);
+  yPos += 6;
+  const orderDate = formatDate(order.ngayTao);
+  doc.text(removeVietnameseAccents(`Ngay dat: ${orderDate}`), 14, yPos);
+  yPos += 6;
+  doc.text(removeVietnameseAccents(`Trang thai: ${order.trangThai}`), 14, yPos);
+  
+  // Thông tin khách hàng
+  yPos += 10;
+  doc.setFont('helvetica', 'bold');
+  doc.text(removeVietnameseAccents('Thong tin khach hang:'), 14, yPos);
+  yPos += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.text(removeVietnameseAccents(`Ho ten: ${order.khachHang.hoTen || 'N/A'}`), 14, yPos);
+  yPos += 6;
+  doc.text(removeVietnameseAccents(`Email: ${order.khachHang.email || 'N/A'}`), 14, yPos);
+  yPos += 6;
+  doc.text(removeVietnameseAccents(`SDT: ${order.khachHang.sdt || 'N/A'}`), 14, yPos);
+  yPos += 6;
+  doc.text(removeVietnameseAccents(`Dia chi: ${order.khachHang.diaChi || 'N/A'}`), 14, yPos);
+  
+  // Bảng sản phẩm
+  yPos += 10;
+  const tableData = order.sanPham.map(sp => [
+    removeVietnameseAccents(sp.tenSp || 'N/A'),
+    String(sp.soLuong || 0),
+    formatPriceWithCommas(sp.gia) + ' VND',
+    formatPriceWithCommas(sp.thanhTien) + ' VND'
+  ]);
+  
+  doc.autoTable({
+    startY: yPos,
+    head: [['San pham', 'So luong', 'Don gia', 'Thanh tien']],
+    body: tableData,
+    theme: 'striped',
+    headStyles: { fillColor: [47, 93, 80], textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: 9 },
+    columnStyles: {
+      0: { cellWidth: 80 },
+      1: { cellWidth: 30, halign: 'center' },
+      2: { cellWidth: 35, halign: 'right' },
+      3: { cellWidth: 35, halign: 'right' }
+    }
+  });
+  
+  // Thông tin thanh toán
+  const finalY = doc.lastAutoTable.finalY + 10;
+  doc.setFont('helvetica', 'bold');
+  doc.text(removeVietnameseAccents('Thong tin thanh toan:'), 14, finalY);
+  
+  let payY = finalY + 7;
+  doc.setFont('helvetica', 'normal');
+  doc.text(removeVietnameseAccents(`Tong gia tri don hang: ${formatPriceWithCommas(order.tongGiaTri)} VND`), 14, payY);
+  payY += 6;
+  doc.text(removeVietnameseAccents(`Da thanh toan: ${formatPriceWithCommas(order.thanhToan.tongDaThanhToan)} VND`), 14, payY);
+  payY += 6;
+  if (order.thanhToan.conLai > 0) {
+    doc.text(removeVietnameseAccents(`Con lai: ${formatPriceWithCommas(order.thanhToan.conLai)} VND`), 14, payY);
+    payY += 6;
+  }
+  if (order.thanhToan.phuongThucThanhToan) {
+    doc.text(removeVietnameseAccents(`Phuong thuc: ${order.thanhToan.phuongThucThanhToan}`), 14, payY);
+    payY += 6;
+  }
+  
+  // Lịch sử thanh toán nếu có
+  if (order.thanhToan.lichSuThanhToan && order.thanhToan.lichSuThanhToan.length > 0) {
+    payY += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(removeVietnameseAccents('Lich su thanh toan:'), 14, payY);
+    payY += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    order.thanhToan.lichSuThanhToan.forEach(payment => {
+      if (payY > 270) {
+        doc.addPage();
+        payY = 20;
+      }
+      const paymentDate = formatDate(payment.ngayThanhToan);
+      const paymentAmount = formatPriceWithCommas(payment.soTien);
+      const paymentMethod = removeVietnameseAccents(payment.phuongThuc || 'N/A');
+      const paymentStatus = removeVietnameseAccents(payment.trangThai || 'N/A');
+      doc.text(`${paymentDate} - ${paymentAmount} VND (${paymentMethod}) - ${paymentStatus}`, 14, payY);
+      payY += 5;
+    });
+  }
+  
+  // Footer
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Trang ${i}/${pageCount}`, 105, 285, { align: 'center' });
+    doc.text(removeVietnameseAccents('Cam on quy khach da mua hang!'), 105, 290, { align: 'center' });
+  }
+  
+  // Tải file PDF
+  doc.save(`HoaDon_${order.orderId}_${new Date().toISOString().split('T')[0]}.pdf`);
+}
+
 window.deletePromotion = deletePromotion;
 window.editUser = editUser;
 window.deleteUser = deleteUser;
 window.viewOrderDetail = viewOrderDetail;
+window.printInvoice = printInvoice;
 window.loadRevenueDay = loadRevenueDay;
 window.loadRevenueMonth = loadRevenueMonth;
 window.loadRevenueYear = loadRevenueYear;

@@ -25,9 +25,26 @@ namespace BE_DACK.Controllers
         private string GetFrontendUrl(string path = "")
         {
             var baseUrl = _configuration["FrontendUrl:BaseUrl"] ?? "http://127.0.0.1:5500";
+            baseUrl = baseUrl.TrimEnd('/');
+            
+            // Đảm bảo baseUrl có protocol
+            if (!baseUrl.StartsWith("http://") && !baseUrl.StartsWith("https://"))
+            {
+                baseUrl = "http://" + baseUrl;
+            }
+            
             if (string.IsNullOrEmpty(path))
                 return baseUrl;
-            return $"{baseUrl.TrimEnd('/')}/{path.TrimStart('/')}";
+            
+            // Đảm bảo path bắt đầu bằng / và không có khoảng trắng
+            path = path.Trim();
+            if (!path.StartsWith("/"))
+            {
+                path = "/" + path;
+            }
+            
+            var fullUrl = $"{baseUrl}{path}";
+            return fullUrl;
         }
 
         private static readonly HashSet<string> SuccessfulPaymentStatuses = new(StringComparer.OrdinalIgnoreCase)
@@ -450,17 +467,18 @@ namespace BE_DACK.Controllers
             try
             {
                 var paymentPageUrl = GetFrontendUrl(_configuration["FrontendUrl:PaymentPage"] ?? "/src/payment.html");
-                var ordersPageUrl = GetFrontendUrl(_configuration["FrontendUrl:OrdersPage"] ?? "/src/orders.html");
-                var homePageUrl = GetFrontendUrl(_configuration["FrontendUrl:HomePage"] ?? "/src/index.html");
+                var ordersPageUrl = GetFrontendUrl(_configuration["FrontendUrl:OrdersPage"] ?? "/FE_DACK/src/orders.html");
+                var homePageUrl = GetFrontendUrl(_configuration["FrontendUrl:HomePage"] ?? "/FE_DACK/src/index.html");
+                
+                Console.WriteLine($"[Payment Return] HomePageUrl: {homePageUrl}");
+                Console.WriteLine($"[Payment Return] OrdersPageUrl: {ordersPageUrl}");
+                Console.WriteLine($"[Payment Return] PaymentPageUrl: {paymentPageUrl}");
 
                 PaymentResult paymentResult;
                 string errorMessage = "";
 
                 try
                 {
-                    // VNPAY gửi dữ liệu qua query string (GET) hoặc form data (POST)
-                    // GetPaymentResult đã tự động lọc các tham số vnp_*, nên chỉ cần truyền Request.Query
-                    // Nếu là POST, cần merge form data vào query
                     IQueryCollection queryParams = Request.Query;
                     
                     if (Request.HasFormContentType && Request.Form != null && Request.Form.Count > 0)
@@ -711,75 +729,6 @@ namespace BE_DACK.Controllers
         .btn {{
             font-weight: 600;
             padding: 12px 30px;
-            border-radius:
-<!DOCTYPE html>
-<html lang='vi'>
-<head>
-    <meta charset='UTF-8'>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <title>Thanh toán thành công - Decora</title>
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            font-weight: 400;
-            line-height: 28px;
-            color: #6a6a6a;
-            font-size: 14px;
-            background-color: #eff2f1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }}
-        .success-container {{
-            background-color: #ffffff;
-            text-align: center;
-            padding: 60px 40px;
-            border-radius: 16px;
-            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
-            width: 100%;
-        }}
-        .checkmark-icon {{
-            width: 80px;
-            height: 80px;
-            background-color: #3b5d50;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 30px;
-            color: #ffffff;
-            font-size: 48px;
-            font-weight: 700;
-        }}
-        h1 {{
-            font-weight: 700;
-            color: #2f2f2f;
-            margin-bottom: 15px;
-            font-size: 32px;
-        }}
-        .success-message {{
-            color: #6a6a6a;
-            margin-bottom: 30px;
-            font-size: 16px;
-            line-height: 1.6;
-        }}
-        .countdown {{
-            color: #3b5d50;
-            font-weight: 600;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }}
-        .btn {{
-            font-weight: 600;
-            padding: 12px 30px;
             border-radius: 8px;
             color: #ffffff;
             font-size: 0.9rem;
@@ -813,6 +762,7 @@ namespace BE_DACK.Controllers
         let countdown = 5;
         const countdownElement = document.getElementById('countdown');
         const homePageUrl = '{homePageUrl}';
+        const ordersPageUrl = '{ordersPageUrl}';
         
         function updateCountdown() {{
             if (countdownElement) {{
@@ -820,7 +770,39 @@ namespace BE_DACK.Controllers
             }}
             countdown--;
             if (countdown < 0) {{
-                window.location.href = homePageUrl;
+                goToHome();
+            }}
+        }}
+        
+        function goToHome() {{
+            try {{
+                console.log('Redirecting to home:', homePageUrl);
+                if (homePageUrl && homePageUrl.trim() !== '') {{
+                    window.location.replace(homePageUrl);
+                }} else {{
+                    console.error('HomePageUrl is empty');
+                    window.location.replace('http://127.0.0.1:5500/FE_DACK/src/orders.html');
+                }}
+            }} catch (error) {{
+                console.error('Error redirecting to home:', error);
+                // Fallback: thử dùng absolute URL
+                window.location.replace('http://127.0.0.1:5500/FE_DACK/src/index.html');
+            }}
+        }}
+        
+        function goToOrders() {{
+            try {{
+                console.log('Redirecting to orders:', ordersPageUrl);
+                if (ordersPageUrl && ordersPageUrl.trim() !== '') {{
+                    window.location.replace(ordersPageUrl);
+                }} else {{
+                    console.error('OrdersPageUrl is empty');
+                    window.location.replace('http://127.0.0.1:5500/FE_DACK/src/orders.html');
+                }}
+            }} catch (error) {{
+                console.error('Error redirecting to orders:', error);
+                // Fallback: thử dùng absolute URL
+                window.location.replace('http://127.0.0.1:5500/FE_DACK/src/orders.html');
             }}
         }}
         
@@ -835,9 +817,13 @@ namespace BE_DACK.Controllers
         <h1>Thanh toán thành công!</h1>
         <p class='success-message'>Cảm ơn bạn đã mua hàng tại Decora.<br>Đơn hàng của bạn đang được xử lý và sẽ được giao trong thời gian sớm nhất.</p>
         <p class='countdown' id='countdown'>Tự động chuyển về trang chủ sau 5 giây...</p>
+        <div style='margin-bottom: 20px; font-size: 12px; color: #999;'>
+            <p>URL trang chủ: <span id='homeUrl'>{homePageUrl}</span></p>
+            <p>URL đơn hàng: <span id='ordersUrl'>{ordersPageUrl}</span></p>
+        </div>
         <div>
-            <a href='{homePageUrl}' class='btn'>Về trang chủ</a>
-            <a href='{ordersPageUrl}' class='btn btn-secondary'>Xem đơn hàng</a>
+            <button onclick='goToHome()' class='btn'>Về trang chủ</button>
+            <button onclick='goToOrders()' class='btn btn-secondary'>Xem đơn hàng</button>
         </div>
     </div>
 </body>

@@ -1,1 +1,1 @@
-scaffold-DbContext "Name=ConnectionStrings:Connection" Microsoft.EntityFrameworkCore.SqlServer -OutputDir Models\Entities -Force -Context DACKContext
+dotnet ef dbcontext scaffold "Server=MSI;Database=TTNT;User Id=sa;Password=phuc123;TrustServerCertificate=True;" Microsoft.EntityFrameworkCore.SqlServer -o Models/Entity -f -d

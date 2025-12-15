@@ -15,29 +15,326 @@
   <link href="../css/style.css" rel="stylesheet">
   <title>Thông tin cá nhân - Decora</title>
   <style>
+    :root {
+      --primary-color: #3b5d50;
+      --secondary-color: #f9bf29;
+      --gradient-start: #3b5d50;
+      --gradient-end: #2d4a3f;
+      --card-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      --card-hover-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      --border-radius: 16px;
+      --transition: all 0.3s ease;
+    }
+
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+      min-height: 100vh;
+    }
+
+    .profile-section {
+      padding: 60px 0;
+    }
+
     .profile-card {
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: var(--border-radius);
+      box-shadow: var(--card-shadow);
       margin-bottom: 30px;
+      overflow: hidden;
+      background: white;
+      transition: var(--transition);
+      border: none;
     }
+
+    .profile-card:hover {
+      box-shadow: var(--card-hover-shadow);
+      transform: translateY(-2px);
+    }
+
     .profile-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
       color: white;
-      padding: 30px;
-      border-radius: 12px 12px 0 0;
+      padding: 50px 30px;
+      position: relative;
+      overflow: hidden;
     }
+
+    .profile-header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: pulse 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+    }
+
     .profile-avatar {
-      width: 100px;
-      height: 100px;
+      width: 120px;
+      height: 120px;
       border-radius: 50%;
       background: white;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 48px;
-      color: #667eea;
-      margin: 0 auto 15px;
-      border: 4px solid white;
+      font-size: 56px;
+      color: var(--primary-color);
+      margin: 0 auto 20px;
+      border: 5px solid rgba(255,255,255,0.3);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      position: relative;
+      z-index: 1;
+      transition: var(--transition);
+    }
+
+    .profile-avatar:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    .profile-header h3 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .profile-header p {
+      font-size: 16px;
+      opacity: 0.95;
+      position: relative;
+      z-index: 1;
+    }
+
+    .card-body {
+      padding: 40px;
+    }
+
+    .form-label {
+      color: #2d3748;
+      font-weight: 600;
+      margin-bottom: 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-control {
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      transition: var(--transition);
+      background: #f8f9fa;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary-color);
+      background: white;
+      box-shadow: 0 0 0 3px rgba(59, 93, 80, 0.1);
+      outline: none;
+    }
+
+    .form-control:disabled {
+      background: #f1f3f5;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--gradient-end) 100%);
+      border: none;
+      border-radius: 10px;
+      padding: 12px 30px;
+      font-weight: 600;
+      transition: var(--transition);
+      box-shadow: 0 4px 15px rgba(59, 93, 80, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(59, 93, 80, 0.4);
+      background: linear-gradient(135deg, var(--gradient-end) 0%, var(--primary-color) 100%);
+    }
+
+    .btn-outline-secondary {
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 30px;
+      font-weight: 600;
+      transition: var(--transition);
+      color: #64748b;
+    }
+
+    .btn-outline-secondary:hover {
+      background: #f1f3f5;
+      border-color: #cbd5e0;
+      transform: translateY(-2px);
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      border: none;
+      border-radius: 10px;
+      padding: 12px 30px;
+      font-weight: 600;
+      color: white;
+      transition: var(--transition);
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+    }
+
+    .btn-warning:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+      background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border: none;
+      border-bottom: 2px solid #e2e8f0;
+      padding: 20px 30px;
+      border-radius: var(--border-radius) var(--border-radius) 0 0;
+    }
+
+    .card-header h5 {
+      color: var(--primary-color);
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .card-header h5 i {
+      color: var(--secondary-color);
+    }
+
+    .text-danger {
+      color: #ef4444 !important;
+    }
+
+    .text-muted {
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .back-button {
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 20px;
+      transition: var(--transition);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .back-button:hover {
+      background: #f8f9fa;
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+      transform: translateX(-3px);
+    }
+
+    .back-button i {
+      transition: var(--transition);
+    }
+
+    .back-button:hover i {
+      transform: translateX(-3px);
+    }
+
+    .form-group-icon {
+      position: relative;
+    }
+
+    .form-group-icon i {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      z-index: 1;
+    }
+
+    .form-group-icon .form-control {
+      padding-left: 45px;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+      margin: 30px 0;
+    }
+
+    .info-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 5px;
+    }
+
+    .info-badge i {
+      color: var(--primary-color);
+    }
+
+    @media (max-width: 768px) {
+      .profile-header {
+        padding: 40px 20px;
+      }
+
+      .card-body {
+        padding: 30px 20px;
+      }
+
+      .profile-avatar {
+        width: 100px;
+        height: 100px;
+        font-size: 48px;
+      }
+    }
+
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .spinner-custom {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e2e8f0;
+      border-top-color: var(--primary-color);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -101,60 +398,81 @@
   <!-- Start Profile Section -->
   <div class="untree_co-section before-footer-section">
     <div class="container">
-      <div class="row mb-3">
+      <div class="row mb-4">
         <div class="col-md-12">
-          <a href="index.html" class="btn btn-outline-secondary btn-sm mb-3">
-            <i class="fas fa-arrow-left me-1"></i> Quay lại
+          <a href="index.html" class="back-button">
+            <i class="fas fa-arrow-left"></i> Quay lại trang chủ
           </a>
         </div>
       </div>
 
-      <div id="loading-spinner" class="text-center mb-4" style="display: none;">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
+      <div id="loading-spinner" class="loading-overlay" style="display: none;">
+        <div class="spinner-custom"></div>
       </div>
 
       <div class="row">
-        <div class="col-md-8 mx-auto">
+        <div class="col-lg-10 col-xl-8 mx-auto">
+          <!-- Thông tin cá nhân -->
           <div class="card profile-card">
             <div class="profile-header text-center">
               <div class="profile-avatar">
                 <i class="fas fa-user"></i>
               </div>
-              <h3 id="profile-name" class="mb-0"></h3>
-              <p id="profile-email" class="mb-0 mt-2" style="opacity: 0.9;"></p>
+              <h3 id="profile-name" class="mb-0">Đang tải...</h3>
+              <p id="profile-email" class="mb-0 mt-2">Đang tải...</p>
             </div>
 
-            <div class="card-body p-4">
+            <div class="card-body">
               <form id="profile-form">
-                <div class="mb-3">
-                  <label for="hoTen" class="form-label fw-bold">Họ và tên <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" id="hoTen" name="hoTen" required>
-                </div>
-
-                <div class="mb-3">
-                  <label for="email" class="form-label fw-bold">Email</label>
-                  <input type="email" class="form-control" id="email" name="email" disabled style="background-color: #e9ecef;">
-                  <small class="text-muted">Email không thể thay đổi</small>
-                </div>
-
-                <div class="mb-3">
-                  <label for="sdt" class="form-label fw-bold">Số điện thoại</label>
-                  <input type="tel" class="form-control" id="sdt" name="sdt" placeholder="Nhập số điện thoại">
+                <div class="mb-4">
+                  <label for="hoTen" class="form-label">
+                    <i class="fas fa-user-circle me-2"></i>Họ và tên <span class="text-danger">*</span>
+                  </label>
+                  <div class="form-group-icon">
+                    <i class="fas fa-user"></i>
+                    <input type="text" class="form-control" id="hoTen" name="hoTen" required placeholder="Nhập họ và tên của bạn">
+                  </div>
                 </div>
 
                 <div class="mb-4">
-                  <label for="diaChi" class="form-label fw-bold">Địa chỉ</label>
+                  <label for="email" class="form-label">
+                    <i class="fas fa-envelope me-2"></i>Email
+                  </label>
+                  <div class="form-group-icon">
+                    <i class="fas fa-envelope"></i>
+                    <input type="email" class="form-control" id="email" name="email" disabled>
+                  </div>
+                  <div class="info-badge">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Email không thể thay đổi</span>
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <label for="sdt" class="form-label">
+                    <i class="fas fa-phone me-2"></i>Số điện thoại
+                  </label>
+                  <div class="form-group-icon">
+                    <i class="fas fa-phone"></i>
+                    <input type="tel" class="form-control" id="sdt" name="sdt" placeholder="Nhập số điện thoại của bạn">
+                  </div>
+                </div>
+
+                <div class="mb-4">
+                  <label for="diaChi" class="form-label">
+                    <i class="fas fa-map-marker-alt me-2"></i>Địa chỉ
+                  </label>
                   <textarea class="form-control" id="diaChi" name="diaChi" rows="3" placeholder="Nhập địa chỉ của bạn"></textarea>
                 </div>
 
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                  <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.location.href='index.html'">
-                    Hủy
+                <div class="section-divider"></div>
+
+                <div class="d-flex gap-3 justify-content-end">
+                  <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='index.html'">
+                    <i class="fas fa-times me-2"></i>Hủy
                   </button>
-                  <button type="submit" class="btn btn-primary btn-sm">
-                    <i class="fas fa-save me-1"></i> Lưu thông tin
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Lưu thông tin
                   </button>
                 </div>
               </form>
@@ -162,20 +480,31 @@
           </div>
 
           <!-- Đổi mật khẩu -->
-          <div class="card profile-card mt-3">
-            <div class="card-header bg-light">
-              <h5 class="mb-0"><i class="fas fa-key me-2"></i> Đổi mật khẩu</h5>
+          <div class="card profile-card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="fas fa-key me-2"></i>Đổi mật khẩu
+              </h5>
             </div>
-            <div class="card-body p-4">
+            <div class="card-body">
               <form id="change-password-form">
-                <div class="mb-3">
-                  <label for="matKhauMoi" class="form-label fw-bold">Mật khẩu mới <span class="text-danger">*</span></label>
-                  <input type="password" class="form-control" id="matKhauMoi" name="matKhauMoi" required placeholder="Nhập mật khẩu mới">
+                <div class="mb-4">
+                  <label for="matKhauMoi" class="form-label">
+                    <i class="fas fa-lock me-2"></i>Mật khẩu mới <span class="text-danger">*</span>
+                  </label>
+                  <div class="form-group-icon">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" class="form-control" id="matKhauMoi" name="matKhauMoi" required placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)">
+                  </div>
+                  <div class="info-badge">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Mật khẩu phải có ít nhất 6 ký tự</span>
+                  </div>
                 </div>
 
-                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                  <button type="submit" class="btn btn-warning btn-sm">
-                    <i class="fas fa-key me-1"></i> Đổi mật khẩu
+                <div class="d-flex justify-content-end">
+                  <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-key me-2"></i>Đổi mật khẩu
                   </button>
                 </div>
               </form>

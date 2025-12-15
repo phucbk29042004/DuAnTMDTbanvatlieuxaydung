@@ -1,0 +1,15 @@
+{
+  "name": "fe-dack",
+  "version": "1.0.0",
+  "description": "Frontend for DACK project",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4"
+  },
+  "author": "",
+  "license": "ISC"
+}

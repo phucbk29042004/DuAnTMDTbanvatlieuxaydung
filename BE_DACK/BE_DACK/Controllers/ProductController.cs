@@ -212,15 +212,30 @@ namespace BE_DACK.Controllers
         }
 
         [HttpPut("SuaSanPham")]
+        [Authorize]
         public async Task<IActionResult> SuaSanPham([FromForm] SuaSanPhamRequest model)
         {
+            // Kiểm tra quyền admin
+            var userId = GetUserIdFromToken();
+            if (!userId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+            }
+
+            var user = await _context.Customers.FirstOrDefaultAsync(c => c.Id == userId.Value);
+            if (user == null || user.IsAdmin != true)
+            {
+                return StatusCode(403, new { success = false, message = "Chỉ admin mới có quyền sửa sản phẩm" });
+            }
+
             if (!ModelState.IsValid)
             {
+                var errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage)).ToList();
                 return BadRequest(new
                 {
                     success = false,
                     message = "Dữ liệu không hợp lệ",
-                    errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                    errors = errors
                 });
             }
 
@@ -250,17 +265,37 @@ namespace BE_DACK.Controllers
 
                 if (model.Gia.HasValue)
                 {
+                    if (model.Gia.Value < 0)
+                    {
+                        return BadRequest(new { success = false, message = "Giá sản phẩm không được âm" });
+                    }
                     product.Gia = model.Gia.Value;
                 }
 
                 if (model.SoLuongConLaiTrongKho.HasValue)
                 {
+                    if (model.SoLuongConLaiTrongKho.Value < 0)
+                    {
+                        return BadRequest(new { success = false, message = "Số lượng không được âm" });
+                    }
                     product.SoLuongConLaiTrongKho = model.SoLuongConLaiTrongKho.Value;
                 }
 
                 if (model.CategoryId.HasValue)
                 {
-                    product.CategoryId = model.CategoryId.Value <= 0 ? null : model.CategoryId.Value;
+                    if (model.CategoryId.Value > 0)
+                    {
+                        var categoryExists = await _context.Categories.AnyAsync(c => c.Id == model.CategoryId.Value);
+                        if (!categoryExists)
+                        {
+                            return BadRequest(new { success = false, message = $"Không tìm thấy danh mục với ID = {model.CategoryId.Value}" });
+                        }
+                        product.CategoryId = model.CategoryId.Value;
+                    }
+                    else
+                    {
+                        product.CategoryId = null;
+                    }
                 }
 
                 _context.Products.Update(product);
@@ -270,14 +305,25 @@ namespace BE_DACK.Controllers
                 {
                     foreach (var file in model.HinhAnh)
                     {
-                        var url = await _cloudinaryService.UploadImageAsync(file, "SanPham");
-                        if (!string.IsNullOrEmpty(url))
+                        if (file != null && file.Length > 0)
                         {
-                            _context.ProductImages.Add(new ProductImage
+                            try
                             {
-                                ProductId = product.Id,
-                                HinhAnh = url
-                            });
+                                var url = await _cloudinaryService.UploadImageAsync(file, "SanPham");
+                                if (!string.IsNullOrEmpty(url))
+                                {
+                                    _context.ProductImages.Add(new ProductImage
+                                    {
+                                        ProductId = product.Id,
+                                        HinhAnh = url
+                                    });
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                // Log lỗi upload ảnh nhưng không dừng toàn bộ quá trình
+                                Console.WriteLine($"Lỗi upload ảnh: {ex.Message}");
+                            }
                         }
                     }
                     await _context.SaveChangesAsync();
@@ -295,7 +341,7 @@ namespace BE_DACK.Controllers
             catch (Exception ex)
             {
                 await trans.RollbackAsync();
-                return BadRequest(new
+                return StatusCode(500, new
                 {
                     success = false,
                     message = "Có lỗi xảy ra khi cập nhật sản phẩm",
@@ -305,24 +351,93 @@ namespace BE_DACK.Controllers
         }
 
         [HttpDelete("XoaSanPham/{id}")]
+        [Authorize]
         public async Task<IActionResult> XoaSanPham(int id)
         {
+            // Kiểm tra quyền admin
+            var userId = GetUserIdFromToken();
+            if (!userId.HasValue)
+            {
+                return Unauthorized(new { success = false, message = "Không có quyền truy cập" });
+            }
+
+            var user = await _context.Customers.FirstOrDefaultAsync(c => c.Id == userId.Value);
+            if (user == null || user.IsAdmin != true)
+            {
+                return StatusCode(403, new { success = false, message = "Chỉ admin mới có quyền xóa sản phẩm" });
+            }
+
+            using var trans = await _context.Database.BeginTransactionAsync();
             try
             {
-                var product = await _context.Products.FindAsync(id);
+                var product = await _context.Products
+                    .Include(p => p.ProductImages)
+                    .FirstOrDefaultAsync(p => p.Id == id);
+
                 if (product == null)
                 {
                     return NotFound(new { success = false, message = "Không tìm thấy sản phẩm" });
                 }
 
+                // Kiểm tra xem sản phẩm có đang được sử dụng trong đơn hàng không
+                var hasOrderDetails = await _context.OrderDetails.AnyAsync(od => od.ProductId == id);
+                if (hasOrderDetails)
+                {
+                    return BadRequest(new 
+                    { 
+                        success = false, 
+                        message = "Không thể xóa sản phẩm này vì đã có đơn hàng sử dụng sản phẩm này. Vui lòng xóa các đơn hàng liên quan trước." 
+                    });
+                }
+
+                // Xóa các hình ảnh của sản phẩm
+                if (product.ProductImages != null && product.ProductImages.Any())
+                {
+                    _context.ProductImages.RemoveRange(product.ProductImages);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Xóa các đánh giá của sản phẩm
+                var reviews = await _context.ProductReviews.Where(pr => pr.ProductId == id).ToListAsync();
+                if (reviews.Any())
+                {
+                    _context.ProductReviews.RemoveRange(reviews);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Xóa các khuyến mãi liên quan
+                var promotions = await _context.ProductPromotions.Where(pp => pp.ProductId == id).ToListAsync();
+                if (promotions.Any())
+                {
+                    _context.ProductPromotions.RemoveRange(promotions);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Xóa sản phẩm khỏi giỏ hàng
+                var cartItems = await _context.ShoppingCartDetails.Where(scd => scd.ProductId == id).ToListAsync();
+                if (cartItems.Any())
+                {
+                    _context.ShoppingCartDetails.RemoveRange(cartItems);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Xóa sản phẩm
                 _context.Products.Remove(product);
                 await _context.SaveChangesAsync();
+
+                await trans.CommitAsync();
 
                 return Ok(new { success = true, message = "Xóa sản phẩm thành công" });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = "Lỗi khi xóa sản phẩm", error = ex.Message });
+                await trans.RollbackAsync();
+                return StatusCode(500, new 
+                { 
+                    success = false, 
+                    message = "Lỗi khi xóa sản phẩm", 
+                    error = ex.Message 
+                });
             }
         }
 
@@ -358,6 +473,175 @@ namespace BE_DACK.Controllers
                 {
                     success = false,
                     message = "Lỗi khi lấy danh sách danh mục",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpPost("ThemDanhMuc")]
+        [Authorize]
+        public async Task<IActionResult> ThemDanhMuc([FromBody] ThemDanhMucRequest request)
+        {
+            try
+            {
+                var isAdminClaim = User.Claims.FirstOrDefault(c => c.Type == "isAdmin");
+                if (isAdminClaim == null || isAdminClaim.Value != "True")
+                {
+                    return StatusCode(403, new { success = false, message = "Bạn không có quyền truy cập chức năng này" });
+                }
+
+                if (string.IsNullOrWhiteSpace(request.TenDanhMuc))
+                {
+                    return BadRequest(new { success = false, message = "Tên danh mục không được để trống" });
+                }
+
+                // Kiểm tra trùng tên danh mục
+                var danhMucTrung = await _context.Categories
+                    .AnyAsync(c => c.TenDanhMucSp.ToLower().Trim() == request.TenDanhMuc.ToLower().Trim());
+                
+                if (danhMucTrung)
+                {
+                    return BadRequest(new { success = false, message = "Tên danh mục đã tồn tại" });
+                }
+
+                var danhMuc = new Category
+                {
+                    TenDanhMucSp = request.TenDanhMuc.Trim(),
+                    MoTaDanhMuc = request.MoTaDanhMuc?.Trim()
+                };
+
+                _context.Categories.Add(danhMuc);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Thêm danh mục thành công",
+                    data = new
+                    {
+                        id = danhMuc.Id,
+                        tenDanhMuc = danhMuc.TenDanhMucSp,
+                        moTa = danhMuc.MoTaDanhMuc
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi thêm danh mục",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpPut("SuaDanhMuc/{id}")]
+        [Authorize]
+        public async Task<IActionResult> SuaDanhMuc(int id, [FromBody] SuaDanhMucRequest request)
+        {
+            try
+            {
+                var isAdminClaim = User.Claims.FirstOrDefault(c => c.Type == "isAdmin");
+                if (isAdminClaim == null || isAdminClaim.Value != "True")
+                {
+                    return StatusCode(403, new { success = false, message = "Bạn không có quyền truy cập chức năng này" });
+                }
+
+                var danhMuc = await _context.Categories.FindAsync(id);
+                if (danhMuc == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy danh mục" });
+                }
+
+                if (string.IsNullOrWhiteSpace(request.TenDanhMuc))
+                {
+                    return BadRequest(new { success = false, message = "Tên danh mục không được để trống" });
+                }
+
+                // Kiểm tra trùng tên danh mục (trừ danh mục hiện tại)
+                var danhMucTrung = await _context.Categories
+                    .AnyAsync(c => c.Id != id && c.TenDanhMucSp.ToLower().Trim() == request.TenDanhMuc.ToLower().Trim());
+                
+                if (danhMucTrung)
+                {
+                    return BadRequest(new { success = false, message = "Tên danh mục đã tồn tại" });
+                }
+
+                danhMuc.TenDanhMucSp = request.TenDanhMuc.Trim();
+                if (request.MoTaDanhMuc != null)
+                {
+                    danhMuc.MoTaDanhMuc = request.MoTaDanhMuc.Trim();
+                }
+
+                _context.Categories.Update(danhMuc);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Sửa danh mục thành công",
+                    data = new
+                    {
+                        id = danhMuc.Id,
+                        tenDanhMuc = danhMuc.TenDanhMucSp,
+                        moTa = danhMuc.MoTaDanhMuc
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi sửa danh mục",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [HttpDelete("XoaDanhMuc/{id}")]
+        [Authorize]
+        public async Task<IActionResult> XoaDanhMuc(int id)
+        {
+            try
+            {
+                var isAdminClaim = User.Claims.FirstOrDefault(c => c.Type == "isAdmin");
+                if (isAdminClaim == null || isAdminClaim.Value != "True")
+                {
+                    return StatusCode(403, new { success = false, message = "Bạn không có quyền truy cập chức năng này" });
+                }
+
+                var danhMuc = await _context.Categories
+                    .Include(c => c.Products)
+                    .FirstOrDefaultAsync(c => c.Id == id);
+
+                if (danhMuc == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy danh mục" });
+                }
+
+                // Kiểm tra xem có sản phẩm nào đang sử dụng danh mục này không
+                if (danhMuc.Products != null && danhMuc.Products.Any())
+                {
+                    return BadRequest(new 
+                    { 
+                        success = false, 
+                        message = $"Không thể xóa danh mục này vì có {danhMuc.Products.Count} sản phẩm đang sử dụng" 
+                    });
+                }
+
+                _context.Categories.Remove(danhMuc);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Xóa danh mục thành công" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi xóa danh mục",
                     error = ex.Message
                 });
             }
@@ -1260,6 +1544,21 @@ namespace BE_DACK.Controllers
         public int Score { get; set; }
         public string? Content { get; set; }
         public DateTime CreatedAt { get; set; }
+    }
+
+    // DTOs for Category operations
+    public class ThemDanhMucRequest
+    {
+        [Required(ErrorMessage = "Tên danh mục là bắt buộc")]
+        public string TenDanhMuc { get; set; } = string.Empty;
+        public string? MoTaDanhMuc { get; set; }
+    }
+
+    public class SuaDanhMucRequest
+    {
+        [Required(ErrorMessage = "Tên danh mục là bắt buộc")]
+        public string TenDanhMuc { get; set; } = string.Empty;
+        public string? MoTaDanhMuc { get; set; }
     }
 
     #endregion
