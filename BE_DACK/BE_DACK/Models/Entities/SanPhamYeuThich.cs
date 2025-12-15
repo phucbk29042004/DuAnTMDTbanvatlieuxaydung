@@ -11,7 +11,7 @@ public partial class SanPhamYeuThich
 
     public int? IdProduct { get; set; }
 
-    // Navigation Properties
     public virtual Customer? IdCustomerNavigation { get; set; }
+
     public virtual Product? IdProductNavigation { get; set; }
 }

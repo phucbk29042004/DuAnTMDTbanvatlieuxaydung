@@ -39,29 +39,32 @@ public partial class DACKContext : DbContext
 
     public virtual DbSet<Promotion> Promotions { get; set; }
 
+    public virtual DbSet<SanPhamYeuThich> SanPhamYeuThiches { get; set; }
+
+    public virtual DbSet<Shipper> Shippers { get; set; }
+
     public virtual DbSet<ShoppingCart> ShoppingCarts { get; set; }
 
     public virtual DbSet<ShoppingCartDetail> ShoppingCartDetails { get; set; }
 
     public virtual DbSet<TonKhoSummary> TonKhoSummaries { get; set; }
 
-    public virtual DbSet<SanPhamYeuThich> SanPhamYeuThiches { get; set; }
-
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer("Name=ConnectionStrings:Connection");
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseSqlServer("Server=DESKTOP-5FEJ6AV;Database=TTNT;User Id=sa;Password=thinh123;TrustServerCertificate=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AccountType>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__AccountT__3214EC073E094E2C");
+            entity.HasKey(e => e.Id).HasName("PK__AccountT__3214EC0756BE5181");
 
             entity.Property(e => e.TenLoaiTaiKhoan).HasMaxLength(100);
         });
 
         modelBuilder.Entity<Category>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Categori__3214EC071A0126D0");
+            entity.HasKey(e => e.Id).HasName("PK__Categori__3214EC07114A0B5B");
 
             entity.Property(e => e.TenDanhMucSp)
                 .HasMaxLength(255)
@@ -70,9 +73,9 @@ public partial class DACKContext : DbContext
 
         modelBuilder.Entity<Customer>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Customer__3214EC071DC8992C");
+            entity.HasKey(e => e.Id).HasName("PK__Customer__3214EC07C6BC7D87");
 
-            entity.HasIndex(e => e.Email, "UQ__Customer__A9D10534FD654FE8").IsUnique();
+            entity.HasIndex(e => e.Email, "UQ__Customer__A9D105340D8ADE52").IsUnique();
 
             entity.Property(e => e.DiaChi).HasMaxLength(255);
             entity.Property(e => e.Email).HasMaxLength(255);
@@ -89,7 +92,7 @@ public partial class DACKContext : DbContext
 
         modelBuilder.Entity<LienHe>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__LienHe__3214EC074B5D986B");
+            entity.HasKey(e => e.Id).HasName("PK__LienHe__3214EC078F373409");
 
             entity.ToTable("LienHe");
 
@@ -102,7 +105,7 @@ public partial class DACKContext : DbContext
 
         modelBuilder.Entity<Order>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Orders__3214EC07F4939770");
+            entity.HasKey(e => e.Id).HasName("PK__Orders__3214EC07F66B8408");
 
             entity.Property(e => e.NgayTaoDonHang).HasColumnType("datetime");
             entity.Property(e => e.TongGiaTriDonHang).HasColumnType("decimal(10, 2)");
@@ -110,12 +113,16 @@ public partial class DACKContext : DbContext
 
             entity.HasOne(d => d.Customer).WithMany(p => p.Orders)
                 .HasForeignKey(d => d.CustomerId)
-                .HasConstraintName("FK__Orders__Customer__46E78A0C");
+                .HasConstraintName("FK__Orders__Customer__4AB81AF0");
+
+            entity.HasOne(d => d.IdShipperNavigation).WithMany(p => p.Orders)
+                .HasForeignKey(d => d.IdShipper)
+                .HasConstraintName("FK_Orders_Shipper");
         });
 
         modelBuilder.Entity<OrderDetail>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__OrderDet__3214EC07D3935592");
+            entity.HasKey(e => e.Id).HasName("PK__OrderDet__3214EC07A6D97901");
 
             entity.Property(e => e.Gia).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.SoLuongSp).HasColumnName("SoLuongSP");
@@ -123,16 +130,16 @@ public partial class DACKContext : DbContext
 
             entity.HasOne(d => d.Order).WithMany(p => p.OrderDetails)
                 .HasForeignKey(d => d.OrderId)
-                .HasConstraintName("FK__OrderDeta__Order__44FF419A");
+                .HasConstraintName("FK__OrderDeta__Order__48CFD27E");
 
             entity.HasOne(d => d.Product).WithMany(p => p.OrderDetails)
                 .HasForeignKey(d => d.ProductId)
-                .HasConstraintName("FK__OrderDeta__Produ__45F365D3");
+                .HasConstraintName("FK__OrderDeta__Produ__49C3F6B7");
         });
 
         modelBuilder.Entity<Payment>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Payments__3214EC07633E381E");
+            entity.HasKey(e => e.Id).HasName("PK__Payments__3214EC07409022FE");
 
             entity.Property(e => e.NgayThanhToan).HasColumnType("datetime");
             entity.Property(e => e.PhuongThucThanhToan).HasMaxLength(50);
@@ -143,12 +150,12 @@ public partial class DACKContext : DbContext
 
             entity.HasOne(d => d.Order).WithMany(p => p.Payments)
                 .HasForeignKey(d => d.OrderId)
-                .HasConstraintName("FK__Payments__OrderI__47DBAE45");
+                .HasConstraintName("FK__Payments__OrderI__4D94879B");
         });
 
         modelBuilder.Entity<Product>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Products__3214EC075341894A");
+            entity.HasKey(e => e.Id).HasName("PK__Products__3214EC07879CA271");
 
             entity.Property(e => e.Gia).HasColumnType("decimal(10, 2)");
             entity.Property(e => e.TenSp)
@@ -157,35 +164,35 @@ public partial class DACKContext : DbContext
 
             entity.HasOne(d => d.Category).WithMany(p => p.Products)
                 .HasForeignKey(d => d.CategoryId)
-                .HasConstraintName("FK__Products__Catego__4D94879B");
+                .HasConstraintName("FK__Products__Catego__534D60F1");
         });
 
         modelBuilder.Entity<ProductImage>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__ProductI__3214EC07F0AC15F9");
+            entity.HasKey(e => e.Id).HasName("PK__ProductI__3214EC073DF9C3F4");
 
             entity.HasOne(d => d.Product).WithMany(p => p.ProductImages)
                 .HasForeignKey(d => d.ProductId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__ProductIm__Produ__48CFD27E");
+                .HasConstraintName("FK__ProductIm__Produ__4E88ABD4");
         });
 
         modelBuilder.Entity<ProductPromotion>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__ProductP__3214EC07CAAB8C2D");
+            entity.HasKey(e => e.Id).HasName("PK__ProductP__3214EC07EC8B8633");
 
             entity.HasOne(d => d.Product).WithMany(p => p.ProductPromotions)
                 .HasForeignKey(d => d.ProductId)
-                .HasConstraintName("FK__ProductPr__Produ__4AB81AF0");
+                .HasConstraintName("FK__ProductPr__Produ__4F7CD00D");
 
             entity.HasOne(d => d.Promotion).WithMany(p => p.ProductPromotions)
                 .HasForeignKey(d => d.PromotionId)
-                .HasConstraintName("FK__ProductPr__Promo__49C3F6B7");
+                .HasConstraintName("FK__ProductPr__Promo__5070F446");
         });
 
         modelBuilder.Entity<ProductReview>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__ProductR__3214EC07D575EE57");
+            entity.HasKey(e => e.Id).HasName("PK__ProductR__3214EC07450A8A3E");
 
             entity.Property(e => e.DiemDg).HasColumnName("DiemDG");
             entity.Property(e => e.NgayDg)
@@ -197,51 +204,82 @@ public partial class DACKContext : DbContext
 
             entity.HasOne(d => d.Customer).WithMany(p => p.ProductReviews)
                 .HasForeignKey(d => d.CustomerId)
-                .HasConstraintName("FK__ProductRe__Custo__4BAC3F29");
+                .HasConstraintName("FK__ProductRe__Custo__5165187F");
 
             entity.HasOne(d => d.Product).WithMany(p => p.ProductReviews)
                 .HasForeignKey(d => d.ProductId)
-                .HasConstraintName("FK__ProductRe__Produ__4CA06362");
+                .HasConstraintName("FK__ProductRe__Produ__52593CB8");
         });
 
         modelBuilder.Entity<Promotion>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Promotio__3214EC07ECD44FDD");
+            entity.HasKey(e => e.Id).HasName("PK__Promotio__3214EC0782B37A8F");
 
             entity.Property(e => e.MoTa).HasMaxLength(255);
             entity.Property(e => e.PhanTramGiam).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.TenKhuyenMai).HasMaxLength(100);
         });
 
+        modelBuilder.Entity<SanPhamYeuThich>(entity =>
+        {
+            entity.ToTable("SanPhamYeuThich");
+
+            entity.HasOne(d => d.IdCustomerNavigation).WithMany(p => p.SanPhamYeuThiches)
+                .HasForeignKey(d => d.IdCustomer)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_SanPhamYeuThich_Customer");
+
+            entity.HasOne(d => d.IdProductNavigation).WithMany(p => p.SanPhamYeuThiches)
+                .HasForeignKey(d => d.IdProduct)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_SanPhamYeuThich_Product");
+        });
+
+        modelBuilder.Entity<Shipper>(entity =>
+        {
+            entity.HasKey(e => e.ShipperId).HasName("PK__SHIPPER__1F8AFFB9F5EB9759");
+
+            entity.ToTable("SHIPPER");
+
+            entity.Property(e => e.ShipperId).HasColumnName("ShipperID");
+            entity.Property(e => e.DienThoai)
+                .HasMaxLength(15)
+                .IsUnicode(false);
+            entity.Property(e => e.Email)
+                .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.TenShipper).HasMaxLength(100);
+        });
+
         modelBuilder.Entity<ShoppingCart>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Shopping__3214EC076E20EB7E");
+            entity.HasKey(e => e.Id).HasName("PK__Shopping__3214EC072B14F1B9");
 
             entity.ToTable("ShoppingCart");
 
             entity.HasOne(d => d.Customer).WithMany(p => p.ShoppingCarts)
                 .HasForeignKey(d => d.CustomerId)
-                .HasConstraintName("FK__ShoppingC__Custo__4E88ABD4");
+                .HasConstraintName("FK__ShoppingC__Custo__5629CD9C");
         });
 
         modelBuilder.Entity<ShoppingCartDetail>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__Shopping__3214EC070E223317");
+            entity.HasKey(e => e.Id).HasName("PK__Shopping__3214EC07505F4970");
 
             entity.Property(e => e.SoLuongTrongGh).HasColumnName("SoLuongTrongGH");
 
             entity.HasOne(d => d.Cart).WithMany(p => p.ShoppingCartDetails)
                 .HasForeignKey(d => d.CartId)
-                .HasConstraintName("FK__ShoppingC__CartI__4F7CD00D");
+                .HasConstraintName("FK__ShoppingC__CartI__571DF1D5");
 
             entity.HasOne(d => d.Product).WithMany(p => p.ShoppingCartDetails)
                 .HasForeignKey(d => d.ProductId)
-                .HasConstraintName("FK__ShoppingC__Produ__5070F446");
+                .HasConstraintName("FK__ShoppingC__Produ__5812160E");
         });
 
         modelBuilder.Entity<TonKhoSummary>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("PK__TonKhoSu__3214EC078D60EA23");
+            entity.HasKey(e => e.Id).HasName("PK__TonKhoSu__3214EC07B9A266AD");
 
             entity.ToTable("TonKhoSummary");
 
@@ -255,32 +293,6 @@ public partial class DACKContext : DbContext
             entity.Property(e => e.TongSoLuongXuat).HasDefaultValue(0);
             entity.Property(e => e.TongSoTon).HasDefaultValue(0);
         });
-        modelBuilder.Entity<SanPhamYeuThich>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("PK__SanPhamYeuThich__3214EC07");
-
-            entity.ToTable("SanPhamYeuThich");
-
-            
-            entity.HasIndex(e => new { e.IdCustomer, e.IdProduct })
-                .IsUnique()
-                .HasDatabaseName("IX_SanPhamYeuThich_Customer_Product");
-
-            
-            entity.HasOne(d => d.IdCustomerNavigation)
-                .WithMany()
-                .HasForeignKey(d => d.IdCustomer)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK_SanPhamYeuThich_Customer");
-
-            
-            entity.HasOne(d => d.IdProductNavigation)
-                .WithMany()
-                .HasForeignKey(d => d.IdProduct)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK_SanPhamYeuThich_Product");
-        });
-
 
         OnModelCreatingPartial(modelBuilder);
     }

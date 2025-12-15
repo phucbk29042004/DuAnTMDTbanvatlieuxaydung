@@ -27,5 +27,7 @@ public partial class Product
 
     public virtual ICollection<ProductReview> ProductReviews { get; set; } = new List<ProductReview>();
 
+    public virtual ICollection<SanPhamYeuThich> SanPhamYeuThiches { get; set; } = new List<SanPhamYeuThich>();
+
     public virtual ICollection<ShoppingCartDetail> ShoppingCartDetails { get; set; } = new List<ShoppingCartDetail>();
 }
