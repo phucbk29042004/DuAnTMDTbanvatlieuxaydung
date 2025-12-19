@@ -49,9 +49,10 @@ public partial class DACKContext : DbContext
 
     public virtual DbSet<TonKhoSummary> TonKhoSummaries { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=DESKTOP-5FEJ6AV;Database=TTNT;User Id=sa;Password=thinh123;TrustServerCertificate=True;");
+    public virtual DbSet<ForumPost> ForumPosts { get; set; }
+    public virtual DbSet<ForumComment> ForumComments { get; set; }
+
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -293,6 +294,62 @@ public partial class DACKContext : DbContext
             entity.Property(e => e.TongSoLuongXuat).HasDefaultValue(0);
             entity.Property(e => e.TongSoTon).HasDefaultValue(0);
         });
+
+        modelBuilder.Entity<ForumPost>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__ForumPos__3214EC07");
+
+            entity.ToTable("ForumPost");
+
+            entity.Property(e => e.TieuDe)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(e => e.NoiDung)
+                .HasColumnType("NVARCHAR(MAX)")
+                .IsRequired();
+
+            entity.Property(e => e.LuotXem)
+                .HasDefaultValue(0);
+
+            entity.Property(e => e.NgayTao)
+                .HasDefaultValueSql("GETDATE()")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Customer)
+                .WithMany(p => p.ForumPosts)
+                .HasForeignKey(d => d.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_ForumPost_Customer");
+        });
+
+        modelBuilder.Entity<ForumComment>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__ForumCom__3214EC07");
+
+            entity.ToTable("ForumComment");
+
+            entity.Property(e => e.NoiDung)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.Property(e => e.NgayTao)
+                .HasDefaultValueSql("GETDATE()")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Post)
+                .WithMany(p => p.ForumComments)
+                .HasForeignKey(d => d.PostId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_ForumComment_ForumPost");
+
+            entity.HasOne(d => d.Customer)
+                .WithMany(p => p.ForumComments)
+                .HasForeignKey(d => d.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_ForumComment_Customer");
+        });
+
 
         OnModelCreatingPartial(modelBuilder);
     }

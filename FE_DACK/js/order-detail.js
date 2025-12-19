@@ -44,6 +44,7 @@ function getOrderIdFromUrl() {
 function renderOrderDetail(data) {
   const statusBadgeClass = getStatusBadgeClass(data.trangThai);
   const customer = data.khachHang || {};
+  const shipper = data.shipper || null;
 
   return `
     <div class="row">
@@ -68,6 +69,19 @@ function renderOrderDetail(data) {
                 <p class="mb-1"><strong>Địa chỉ:</strong> ${customer.diaChi || 'N/A'}</p>
               </div>
             </div>
+
+            ${shipper ? `
+              <h6 class="mt-3 mb-2">Shipper giao hàng:</h6>
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <p class="mb-1"><strong>Tên shipper:</strong> ${shipper.tenShipper || 'N/A'}</p>
+                  <p class="mb-1"><strong>Số điện thoại:</strong> ${shipper.dienThoai || 'N/A'}</p>
+                </div>
+                <div class="col-md-6">
+                  <p class="mb-1"><strong>Email:</strong> ${shipper.email || 'N/A'}</p>
+                </div>
+              </div>
+            ` : ''}
 
             <h6 class="mt-4 mb-3">Danh sách sản phẩm:</h6>
             <div class="table-responsive">

@@ -817,10 +817,6 @@ namespace BE_DACK.Controllers
         <h1>Thanh toán thành công!</h1>
         <p class='success-message'>Cảm ơn bạn đã mua hàng tại Decora.<br>Đơn hàng của bạn đang được xử lý và sẽ được giao trong thời gian sớm nhất.</p>
         <p class='countdown' id='countdown'>Tự động chuyển về trang chủ sau 5 giây...</p>
-        <div style='margin-bottom: 20px; font-size: 12px; color: #999;'>
-            <p>URL trang chủ: <span id='homeUrl'>{homePageUrl}</span></p>
-            <p>URL đơn hàng: <span id='ordersUrl'>{ordersPageUrl}</span></p>
-        </div>
         <div>
             <button onclick='goToHome()' class='btn'>Về trang chủ</button>
             <button onclick='goToOrders()' class='btn btn-secondary'>Xem đơn hàng</button>

@@ -49,6 +49,18 @@
               <span>Quản lý đơn hàng</span>
             </a>
           </li>
+          <li class="nav-item" data-page="forum">
+            <a href="#" class="nav-link">
+              <i class="fas fa-comments"></i>
+              <span>Quản lý bài viết</span>
+            </a>
+          </li>
+          <li class="nav-item" data-page="shippers">
+            <a href="#" class="nav-link">
+              <i class="fas fa-truck"></i>
+              <span>Quản lý shipper</span>
+            </a>
+          </li>
           <li class="nav-item" data-page="promotions">
             <a href="#" class="nav-link">
               <i class="fas fa-percent"></i>
@@ -392,6 +404,7 @@
                 <th>Số sản phẩm</th>
                 <th>Tổng giá trị</th>
                 <th>Trạng thái</th>
+                <th>Shipper</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
@@ -399,6 +412,82 @@
               <!-- Orders will be loaded here -->
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Shippers Management Page -->
+      <div id="page-shippers" class="page-content">
+        <div class="page-header">
+          <h2>Quản lý shipper</h2>
+          <button class="btn btn-primary" id="add-shipper-btn">
+            <i class="fas fa-plus"></i> Thêm shipper
+          </button>
+        </div>
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tên shipper</th>
+                <th>Số điện thoại</th>
+                <th>Email</th>
+                <th>Trạng thái</th>
+                <th>Số đơn hàng</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="shippers-table-body">
+              <!-- Shippers will be loaded here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Forum Posts Management Page -->
+      <div id="page-forum" class="page-content">
+        <div class="page-header">
+          <h2>Quản lý bài viết diễn đàn</h2>
+        </div>
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tiêu đề</th>
+                <th>Tác giả</th>
+                <th>Ngày tạo</th>
+                <th>Lượt xem</th>
+                <th>Số bình luận</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="forum-posts-admin-body">
+              <!-- Forum posts will be loaded here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Forum Post Modal (Admin edit) -->
+      <div id="forum-edit-modal" class="modal">
+        <div class="modal-content" style="max-width: 640px;">
+          <span class="close" onclick="closeForumEditModal()">&times;</span>
+          <h3 id="forum-edit-modal-title" class="mb-3">Sửa bài viết</h3>
+          <form id="forum-edit-form">
+            <input type="hidden" id="forum-edit-id">
+            <div class="form-group">
+              <label for="forum-edit-title">Tiêu đề *</label>
+              <input type="text" id="forum-edit-title" class="form-control" required maxlength="150">
+            </div>
+            <div class="form-group">
+              <label for="forum-edit-content">Nội dung *</label>
+              <textarea id="forum-edit-content" class="form-control" rows="6" required maxlength="5000"></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" onclick="closeForumEditModal()">Hủy</button>
+              <button type="submit" class="btn btn-primary">Lưu</button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -572,6 +661,38 @@
         </div>
         <div class="form-actions">
           <button type="button" class="btn btn-secondary" onclick="closeModal('promotion-modal')">Hủy</button>
+          <button type="submit" class="btn btn-primary">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Shipper Modal -->
+  <div id="shipper-modal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2 id="shipper-modal-title">Thêm shipper</h2>
+      <form id="shipper-form">
+        <input type="hidden" id="shipper-id">
+        <div class="form-group">
+          <label>Tên shipper *</label>
+          <input type="text" id="shipper-tenShipper" required>
+        </div>
+        <div class="form-group">
+          <label>Điện thoại *</label>
+          <input type="text" id="shipper-dienThoai" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="shipper-email">
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="shipper-trangThai" checked> Đang hoạt động
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('shipper-modal')">Hủy</button>
           <button type="submit" class="btn btn-primary">Lưu</button>
         </div>
       </form>

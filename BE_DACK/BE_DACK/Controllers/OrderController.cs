@@ -78,6 +78,7 @@ namespace BE_DACK.Controllers
                     CustomerId = userId,
                     NgayTaoDonHang = DateTime.Now,
                     TongGiaTriDonHang = tongGiaTriSauKhuyenMai, // Lưu giá sau khuyến mãi
+
                     TrangThai = "Chờ xác nhận"
                 };
 
@@ -150,6 +151,7 @@ namespace BE_DACK.Controllers
                         .ThenInclude(d => d.Product)
                             .ThenInclude(p => p.ProductImages)
                     .Include(o => o.Customer)
+                    .Include(o => o.IdShipperNavigation)
                     .Include(o => o.Payments)
                     .FirstOrDefaultAsync(o => o.Id == orderId && o.CustomerId == userId);
 
@@ -179,26 +181,26 @@ namespace BE_DACK.Controllers
                 {
                     "Thành công", "Thanh toán COD", "COD", "Thanh toán thành công"
                 };
-                
+
                 var successfulPayments = donHang.Payments
                     .Where(p => p.TrangThai != null && successfulStatuses.Contains(p.TrangThai))
                     .ToList();
-                
+
                 var tongDaThanhToan = successfulPayments.Sum(p => p.SoTienThanhToan);
                 var conLai = donHang.TongGiaTriDonHang - tongDaThanhToan;
-                
+
                 // Lấy phương thức thanh toán từ giao dịch thành công gần nhất
                 var phuongThucThanhToan = successfulPayments
                     .OrderByDescending(p => p.NgayThanhToan)
                     .Select(p => p.PhuongThucThanhToan)
                     .FirstOrDefault();
-                
+
                 // Tạo mô tả thanh toán
                 string thanhToanInfo = "";
                 if (tongDaThanhToan >= donHang.TongGiaTriDonHang)
                 {
-                    thanhToanInfo = phuongThucThanhToan != null 
-                        ? $"Đã thanh toán đủ ({phuongThucThanhToan})" 
+                    thanhToanInfo = phuongThucThanhToan != null
+                        ? $"Đã thanh toán đủ ({phuongThucThanhToan})"
                         : "Đã thanh toán đủ";
                 }
                 else if (tongDaThanhToan > 0)
@@ -229,6 +231,15 @@ namespace BE_DACK.Controllers
                             sdt = donHang.Customer?.Sdt,
                             diaChi = donHang.Customer?.DiaChi
                         },
+                        shipper = donHang.IdShipperNavigation != null
+                            ? new
+                            {
+                                id = donHang.IdShipperNavigation.ShipperId,
+                                tenShipper = donHang.IdShipperNavigation.TenShipper,
+                                dienThoai = donHang.IdShipperNavigation.DienThoai,
+                                email = donHang.IdShipperNavigation.Email
+                            }
+                            : null,
                         sanPham = chiTiet,
                         soLuongSanPham = chiTiet.Count,
                         thanhToan = new
@@ -266,6 +277,7 @@ namespace BE_DACK.Controllers
                     .Include(o => o.OrderDetails)
                         .ThenInclude(d => d.Product)
                             .ThenInclude(p => p.ProductImages)
+                              .Include(o => o.IdShipperNavigation)
                     .Where(o => o.CustomerId == userId)
                     .OrderByDescending(o => o.NgayTaoDonHang)
                     .ToListAsync();
@@ -277,6 +289,9 @@ namespace BE_DACK.Controllers
                     tongGiaTri = o.TongGiaTriDonHang,
                     trangThai = o.TrangThai,
                     soLuongSanPham = o.OrderDetails.Count,
+
+                    tenShipper = o.IdShipperNavigation?.TenShipper,
+
                     sanPham = o.OrderDetails.Select(d => new
                     {
                         productId = d.ProductId,
@@ -284,7 +299,7 @@ namespace BE_DACK.Controllers
                         soLuong = d.SoLuongSp,
                         gia = d.Gia,
                         thanhTien = d.SoLuongSp * d.Gia,
-                        
+
                         hinhAnh = (d.Product?.ProductImages ?? Enumerable.Empty<ProductImage>())
                             .Select(img => new
                             {
@@ -392,6 +407,7 @@ namespace BE_DACK.Controllers
 
                 var donHangs = await _context.Orders
                     .Include(o => o.Customer)
+                    .Include(o => o.IdShipperNavigation)
                     .Include(o => o.OrderDetails)
                         .ThenInclude(d => d.Product)
                             .ThenInclude(p => p.ProductImages)
@@ -414,6 +430,7 @@ namespace BE_DACK.Controllers
                     tongGiaTri = o.TongGiaTriDonHang,
                     trangThai = o.TrangThai,
                     soLuongSanPham = o.OrderDetails.Count,
+                    tenShipper = o.IdShipperNavigation != null ? o.IdShipperNavigation.TenShipper : null,
                     chiTietSanPham = o.OrderDetails.Select(d => new
                     {
                         productId = d.ProductId,
@@ -495,15 +512,15 @@ namespace BE_DACK.Controllers
                 {
                     "Thành công", "Thanh toán COD", "COD", "Thanh toán thành công"
                 };
-                
+
                 var successfulPayments = donHang.Payments
                     .Where(p => p.TrangThai != null && successfulStatuses.Contains(p.TrangThai))
                     .OrderByDescending(p => p.NgayThanhToan)
                     .ToList();
-                
+
                 var tongDaThanhToan = successfulPayments.Sum(p => p.SoTienThanhToan);
                 var conLai = donHang.TongGiaTriDonHang - tongDaThanhToan;
-                
+
                 var lichSuThanhToan = donHang.Payments
                     .OrderByDescending(p => p.NgayThanhToan)
                     .Select(p => new
@@ -554,5 +571,32 @@ namespace BE_DACK.Controllers
             }
         }
 
+        [HttpPost("assign-shipper")]
+        public async Task<IActionResult> AssignShipper(int shipper,int idOrder )
+        {
+            if( shipper == 0 )
+            {
+                return BadRequest(new
+                {
+                    message = "Lỗi"
+                });
+                
+            }
+            var order = await _context.Orders.FirstOrDefaultAsync(r=>r.Id == idOrder);
+            if(order == null )
+            {
+                return BadRequest(new
+                {
+                    message = "Lỗi"
+                });
+            }
+            order.IdShipper = shipper;
+            _context.Orders.Update(order);
+            _context.SaveChanges();
+            return Ok(new
+            {
+                message = "Thành công"
+            });
+        }
     }
 }

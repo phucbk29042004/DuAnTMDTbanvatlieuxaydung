@@ -30,4 +30,7 @@ public partial class Customer
     public virtual ICollection<SanPhamYeuThich> SanPhamYeuThiches { get; set; } = new List<SanPhamYeuThich>();
 
     public virtual ICollection<ShoppingCart> ShoppingCarts { get; set; } = new List<ShoppingCart>();
+
+    public virtual ICollection<ForumPost> ForumPosts { get; set; } = new List<ForumPost>();
+    public virtual ICollection<ForumComment> ForumComments { get; set; } = new List<ForumComment>();
 }

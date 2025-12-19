@@ -209,6 +209,7 @@ function renderOrderDetailContent(order) {
   const products = Array.isArray(order.sanPham) ? order.sanPham : [];
   const statusBadgeClass = getStatusBadgeClass(order.trangThai);
   const allowReview = canReviewOrder(order);
+  const shipper = order.shipper || null;
 
   return `
     <div>
@@ -236,6 +237,13 @@ function renderOrderDetailContent(order) {
             <p class="mb-1"><strong>Tổng giá trị:</strong> <span class="text-primary h5 mb-0">${formatPrice(order.tongGiaTri)}</span></p>
             <p class="mb-1"><strong>Số lượng sản phẩm:</strong> ${order.soLuongSanPham || products.length}</p>
             <p class="mb-0"><strong>Thanh toán:</strong> ${order.thanhToan?.thongTin || order.phuongThucThanhToan || "Chưa thanh toán"}</p>
+            ${shipper ? `
+              <div class="mt-3 border-top pt-2">
+                <h6 class="text-uppercase text-muted small mb-2">Shipper giao hàng</h6>
+                <p class="mb-1"><strong>Tên:</strong> ${shipper.tenShipper || "N/A"}</p>
+                <p class="mb-0"><strong>Số điện thoại:</strong> ${shipper.dienThoai || "N/A"}</p>
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>

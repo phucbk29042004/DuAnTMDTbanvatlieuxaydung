@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -20,8 +21,8 @@
       --secondary-color: #f9bf29;
       --gradient-start: #3b5d50;
       --gradient-end: #2d4a3f;
-      --card-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      --card-hover-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      --card-hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
       --border-radius: 16px;
       --transition: all 0.3s ease;
     }
@@ -65,13 +66,22 @@
       right: -50%;
       width: 200%;
       height: 200%;
-      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
       animation: pulse 4s ease-in-out infinite;
     }
 
     @keyframes pulse {
-      0%, 100% { transform: scale(1); opacity: 0.5; }
-      50% { transform: scale(1.1); opacity: 0.8; }
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 0.5;
+      }
+
+      50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+      }
     }
 
     .profile-avatar {
@@ -85,8 +95,8 @@
       font-size: 56px;
       color: var(--primary-color);
       margin: 0 auto 20px;
-      border: 5px solid rgba(255,255,255,0.3);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
       position: relative;
       z-index: 1;
       transition: var(--transition);
@@ -94,7 +104,7 @@
 
     .profile-avatar:hover {
       transform: scale(1.05);
-      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
     }
 
     .profile-header h3 {
@@ -334,7 +344,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
   </style>
 </head>
@@ -346,7 +358,8 @@
     <div class="container">
       <a class="navbar-brand" href="index.html">Decora<span>.</span></a>
 
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsDecora" aria-controls="navbarsDecora" aria-expanded="false" aria-label="Toggle navigation">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsDecora"
+        aria-controls="navbarsDecora" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
 
@@ -354,8 +367,8 @@
         <ul class="custom-navbar-nav navbar-nav ms-auto mb-2 mb-md-0">
           <li class="nav-item"><a class="nav-link" href="index.html">Trang chủ</a></li>
           <li><a class="nav-link" href="shop.html">Sản phẩm</a></li>
-          <li><a class="nav-link" href="about.html">Giới thiệu</a></li>
-          <li><a class="nav-link" href="services.html">Dịch vụ</a></li>
+          <li><a class="nav-link" href="blog.html">Blog</a></li>
+          <li><a class="nav-link" href="services.html">Diễn đàn</a></li>
           <li><a class="nav-link" href="contact.html">Liên hệ</a></li>
         </ul>
 
@@ -373,7 +386,8 @@
               <a href="#" id="logout-link" class="logout-link" style="display: none;">Đăng xuất</a>
             </div>
           </li>
-          <li><a class="nav-link" href="cart.html" aria-label="Giỏ hàng"><img src="../images/cart.svg" alt="Giỏ hàng"></a></li>
+          <li><a class="nav-link" href="cart.html" aria-label="Giỏ hàng"><img src="../images/cart.svg"
+                alt="Giỏ hàng"></a></li>
         </ul>
       </div>
     </div>
@@ -430,7 +444,8 @@
                   </label>
                   <div class="form-group-icon">
                     <i class="fas fa-user"></i>
-                    <input type="text" class="form-control" id="hoTen" name="hoTen" required placeholder="Nhập họ và tên của bạn">
+                    <input type="text" class="form-control" id="hoTen" name="hoTen" required
+                      placeholder="Nhập họ và tên của bạn">
                   </div>
                 </div>
 
@@ -462,7 +477,8 @@
                   <label for="diaChi" class="form-label">
                     <i class="fas fa-map-marker-alt me-2"></i>Địa chỉ
                   </label>
-                  <textarea class="form-control" id="diaChi" name="diaChi" rows="3" placeholder="Nhập địa chỉ của bạn"></textarea>
+                  <textarea class="form-control" id="diaChi" name="diaChi" rows="3"
+                    placeholder="Nhập địa chỉ của bạn"></textarea>
                 </div>
 
                 <div class="section-divider"></div>
@@ -494,7 +510,8 @@
                   </label>
                   <div class="form-group-icon">
                     <i class="fas fa-lock"></i>
-                    <input type="password" class="form-control" id="matKhauMoi" name="matKhauMoi" required placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)">
+                    <input type="password" class="form-control" id="matKhauMoi" name="matKhauMoi" required
+                      placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)">
                   </div>
                   <div class="info-badge">
                     <i class="fas fa-shield-alt"></i>
@@ -536,8 +553,8 @@
           <div class="row links-wrap">
             <div class="col-6 col-sm-6 col-md-3">
               <ul class="list-unstyled">
-                <li><a href="about.html">Giới thiệu</a></li>
-                <li><a href="services.html">Dịch vụ</a></li>
+                <li><a href="blog.html">Blog</a></li>
+                <li><a href="services.html">Diễn đàn</a></li>
                 <li><a href="blog.html">Tin tức</a></li>
                 <li><a href="contact.html">Liên hệ</a></li>
               </ul>
@@ -581,4 +598,5 @@
   <script src="../js/tiny-slider.js"></script>
   <script src="../js/custom.js"></script>
 </body>
+
 </html>

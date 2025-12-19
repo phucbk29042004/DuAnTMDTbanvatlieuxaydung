@@ -80,6 +80,8 @@ function switchPage(page) {
     products: 'Quản lý sản phẩm',
     categories: 'Quản lý danh mục',
     orders: 'Quản lý đơn hàng',
+    forum: 'Quản lý bài viết',
+    shippers: 'Quản lý shipper',
     promotions: 'Quản lý khuyến mãi'
   };
   document.getElementById('page-title').textContent = titles[page] || 'Trang chủ';
@@ -100,6 +102,12 @@ function switchPage(page) {
       break;
     case 'orders':
       loadOrders();
+      break;
+    case 'forum':
+      loadForumPostsAdmin();
+      break;
+    case 'shippers':
+      loadShippers();
       break;
     case 'promotions':
       loadPromotions();
@@ -608,23 +616,34 @@ async function loadOrders() {
   }
   
   try {
-    console.log('Loading orders...');
+    console.log('Loading orders & shippers...');
     const token = localStorage.getItem('token');
     console.log('Token exists:', !!token);
-    
-    const response = await axiosClient.get('/api/Order/DanhSachDonHangAdmin');
-    console.log('Response:', response);
-    console.log('Response data:', response.data);
-    
-    if (response.data && response.data.success) {
-      const orders = response.data.data || [];
+
+    const [ordersRes, shippersRes] = await Promise.all([
+      axiosClient.get('/api/Order/DanhSachDonHangAdmin'),
+      axiosClient.get('/api/Shipper')
+    ]);
+
+    const ordersData = ordersRes.data;
+    const shippersData = shippersRes.data;
+
+    if (ordersData && ordersData.success) {
+      const orders = ordersData.data || [];
+      const shippers = (shippersData && shippersData.success && Array.isArray(shippersData.data))
+        ? shippersData.data
+        : [];
+
       console.log('Orders count:', orders.length);
-      
+      console.log('Active shippers count:', shippers.length);
+
       if (orders.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có đơn hàng nào</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">Chưa có đơn hàng nào</td></tr>';
         return;
       }
-      
+
+      const paidStatuses = ['Đã thanh toán', 'Hoàn thành', 'Đang giao hàng'];
+
       tbody.innerHTML = orders.map(order => {
         const statusClass = order.trangThai === 'Hoàn thành' ? 'status-active' :
                            order.trangThai === 'Đã hủy' ? 'status-inactive' :
@@ -632,7 +651,31 @@ async function loadOrders() {
         
         const hoTen = order.khachHang ? (order.khachHang.hoTen || 'N/A') : 'N/A';
         const email = order.khachHang ? (order.khachHang.email || '') : '';
-        
+
+        const canAssignShipper = paidStatuses.includes(order.trangThai || '');
+        const currentShipperName = order.tenShipper || null;
+
+        let shipperCellHtml = '<span class="text-muted">Chưa gán</span>';
+
+        if (canAssignShipper && shippers.length > 0) {
+          const optionsHtml = [
+            `<option value="">-- Chọn shipper --</option>`,
+            ...shippers.map(s => `
+              <option value="${s.shipperId}" ${currentShipperName && currentShipperName === s.tenShipper ? 'selected' : ''}>
+                ${s.tenShipper} (${s.dienThoai || 'N/A'})
+              </option>
+            `)
+          ].join('');
+
+          shipperCellHtml = `
+            <select class="form-select form-select-sm" onchange="assignShipper(${order.id}, this.value)">
+              ${optionsHtml}
+            </select>
+          `;
+        } else if (currentShipperName) {
+          shipperCellHtml = `<span class="badge status-active">${currentShipperName}</span>`;
+        }
+
         return `
         <tr>
           <td>${order.id}</td>
@@ -641,6 +684,7 @@ async function loadOrders() {
           <td>${order.soLuongSanPham || 0}</td>
           <td>${formatCurrency(order.tongGiaTri || 0)}</td>
           <td><span class="status-badge ${statusClass}">${order.trangThai || 'N/A'}</span></td>
+          <td>${shipperCellHtml}</td>
           <td>
             <div class="action-buttons">
               <button class="btn btn-sm btn-edit" onclick="viewOrderDetail(${order.id})">
@@ -652,8 +696,8 @@ async function loadOrders() {
       `;
       }).join('');
     } else {
-      console.warn('Response success is false:', response.data);
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-warning">Không có dữ liệu hoặc response không hợp lệ</td></tr>';
+      console.warn('Response success is false:', ordersData);
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-warning">Không có dữ liệu hoặc response không hợp lệ</td></tr>';
     }
   } catch (error) {
     console.error('Error loading orders:', error);
@@ -703,6 +747,7 @@ async function viewOrderDetail(orderId) {
           <p><strong>Ngày tạo:</strong> ${formatDate(order.ngayTao)}</p>
           <p><strong>Tổng giá trị:</strong> ${formatCurrency(order.tongGiaTri || 0)}</p>
           <p><strong>Trạng thái:</strong> ${order.trangThai || 'N/A'}</p>
+          <p><strong>Shipper:</strong> ${order.tenShipper || 'Chưa gán'}</p>
           <h4>Khách hàng:</h4>
           <p>${order.khachHang ? (order.khachHang.hoTen || 'N/A') : 'N/A'}<br>
           Email: ${order.khachHang ? (order.khachHang.email || 'N/A') : 'N/A'}<br>
@@ -811,6 +856,239 @@ async function loadPromotions() {
   }
 }
 
+// Forum Posts Management (Admin)
+async function loadForumPostsAdmin() {
+  const tbody = document.getElementById('forum-posts-admin-body');
+  if (!tbody) {
+    console.error('forum-posts-admin-body not found');
+    return;
+  }
+
+  try {
+    const response = await axiosClient.get('/api/Forum/admin/posts');
+    if (response.data && response.data.success) {
+      const posts = response.data.data || [];
+
+      if (posts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có bài viết nào</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = posts.map(post => {
+        const author = post.tacGia
+          ? `${post.tacGia.hoTen || 'N/A'}<br><small>${post.tacGia.email || ''}</small>`
+          : 'N/A';
+
+        return `
+          <tr>
+            <td>${post.id}</td>
+            <td>${post.tieuDe}</td>
+            <td>${author}</td>
+            <td>${formatDate(post.ngayTao)}</td>
+            <td>${post.luotXem || 0}</td>
+            <td>${post.soBinhLuan || 0}</td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn btn-sm btn-edit" onclick="openForumEditModal(${post.id})">
+                  <i class="fas fa-edit"></i> Sửa
+                </button>
+                <button class="btn btn-sm btn-delete" onclick="adminDeleteForumPost(${post.id})">
+                  <i class="fas fa-trash"></i> Xóa
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-warning">Không có dữ liệu bài viết</td></tr>';
+    }
+  } catch (error) {
+    console.error('Error loading forum posts (admin):', error);
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Lỗi: ${error.response?.data?.message || error.message}</td></tr>`;
+  }
+}
+
+async function openForumEditModal(id) {
+  const modal = document.getElementById('forum-edit-modal');
+  if (!modal) return;
+
+  // Reset form
+  document.getElementById('forum-edit-form').reset();
+  document.getElementById('forum-edit-id').value = id;
+
+  // Load detail (dùng API GET posts/{id})
+  try {
+    const response = await axiosClient.get(`/api/Forum/posts/${id}`);
+    if (response.data && response.data.success && response.data.data) {
+      const post = response.data.data;
+      document.getElementById('forum-edit-title').value = post.tieuDe || '';
+      document.getElementById('forum-edit-content').value = post.noiDung || '';
+    } else {
+      alert('Không lấy được dữ liệu bài viết để sửa');
+      return;
+    }
+  } catch (error) {
+    alert('Lỗi khi tải chi tiết bài viết: ' + (error.response?.data?.message || error.message));
+    return;
+  }
+
+  modal.style.display = 'block';
+}
+
+function closeForumEditModal() {
+  const modal = document.getElementById('forum-edit-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+// Submit edit
+document.getElementById('forum-edit-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('forum-edit-id').value;
+  const title = document.getElementById('forum-edit-title').value.trim();
+  const content = document.getElementById('forum-edit-content').value.trim();
+
+  if (!id || !title || !content) {
+    alert('Vui lòng nhập đủ tiêu đề và nội dung');
+    return;
+  }
+
+  try {
+    const response = await axiosClient.put(`/api/Forum/admin/posts/${id}`, {
+      TieuDe: title,
+      NoiDung: content
+    });
+    if (response.data && response.data.success) {
+      alert(response.data.message || 'Cập nhật bài viết thành công');
+      closeForumEditModal();
+      loadForumPostsAdmin();
+    } else {
+      alert('Lỗi: ' + (response.data?.message || 'Không thể cập nhật bài viết'));
+    }
+  } catch (error) {
+    alert('Lỗi khi cập nhật bài viết: ' + (error.response?.data?.message || error.message));
+  }
+});
+
+async function adminDeleteForumPost(id) {
+  if (!confirm('Bạn có chắc chắn muốn xóa bài viết này?')) return;
+  try {
+    const response = await axiosClient.delete(`/api/Forum/admin/posts/${id}`);
+    if (response.data && response.data.success) {
+      alert(response.data.message || 'Đã xóa bài viết');
+      loadForumPostsAdmin();
+    } else {
+      alert('Lỗi: ' + (response.data?.message || 'Không thể xóa bài viết'));
+    }
+  } catch (error) {
+    alert('Lỗi khi xóa bài viết: ' + (error.response?.data?.message || error.message));
+  }
+}
+
+// Shippers Management
+async function loadShippers() {
+  const tbody = document.getElementById('shippers-table-body');
+  if (!tbody) {
+    console.error('shippers-table-body not found');
+    return;
+  }
+
+  try {
+    const response = await axiosClient.get('/api/Shipper');
+    if (response.data && response.data.success) {
+      const shippers = response.data.data || [];
+
+      if (shippers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Chưa có shipper nào</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = shippers.map(s => {
+        const statusBadge = s.trangThai
+          ? '<span class="status-badge status-active">Đang hoạt động</span>'
+          : '<span class="status-badge status-inactive">Ngưng hoạt động</span>';
+
+        return `
+          <tr>
+            <td>${s.shipperId}</td>
+            <td>${s.tenShipper}</td>
+            <td>${s.dienThoai}</td>
+            <td>${s.email || 'N/A'}</td>
+            <td>${statusBadge}</td>
+            <td>${s.soDonHang || 0}</td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn btn-sm btn-edit" onclick="editShipper(${s.shipperId})">
+                  <i class="fas fa-edit"></i> Sửa
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="toggleShipperStatus(${s.shipperId})">
+                  <i class="fas fa-toggle-on"></i> Đổi trạng thái
+                </button>
+                <button class="btn btn-sm btn-delete" onclick="deleteShipper(${s.shipperId})">
+                  <i class="fas fa-trash"></i> Xóa
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-warning">Không có dữ liệu shipper</td></tr>';
+    }
+  } catch (error) {
+    console.error('Error loading shippers:', error);
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Lỗi: ${error.response?.data?.message || error.message}</td></tr>`;
+  }
+}
+
+async function editShipper(id) {
+  try {
+    const response = await axiosClient.get(`/api/Shipper/${id}`);
+    if (response.data && response.data.success && response.data.data) {
+      const s = response.data.data;
+      document.getElementById('shipper-id').value = s.shipperId;
+      document.getElementById('shipper-tenShipper').value = s.tenShipper || '';
+      document.getElementById('shipper-dienThoai').value = s.dienThoai || '';
+      document.getElementById('shipper-email').value = s.email || '';
+      document.getElementById('shipper-trangThai').checked = s.trangThai !== false;
+      document.getElementById('shipper-modal-title').textContent = 'Sửa shipper';
+      openModal('shipper-modal');
+    }
+  } catch (error) {
+    alert('Lỗi khi tải thông tin shipper: ' + (error.response?.data?.message || error.message));
+  }
+}
+
+async function deleteShipper(id) {
+  if (!confirm('Bạn có chắc chắn muốn xóa shipper này?')) return;
+
+  try {
+    const response = await axiosClient.delete(`/api/Shipper/${id}`);
+    if (response.data && response.data.success) {
+      alert(response.data.message || 'Xóa shipper thành công');
+      loadShippers();
+    } else {
+      alert('Lỗi: ' + (response.data?.message || 'Không thể xóa shipper'));
+    }
+  } catch (error) {
+    alert('Lỗi khi xóa shipper: ' + (error.response?.data?.message || error.message));
+  }
+}
+
+async function toggleShipperStatus(id) {
+  try {
+    const response = await axiosClient.patch(`/api/Shipper/${id}/toggle-status`);
+    if (response.data && response.data.success) {
+      alert(response.data.message || 'Cập nhật trạng thái shipper thành công');
+      loadShippers();
+    } else {
+      alert('Lỗi: ' + (response.data?.message || 'Không thể cập nhật trạng thái shipper'));
+    }
+  } catch (error) {
+    alert('Lỗi khi cập nhật trạng thái shipper: ' + (error.response?.data?.message || error.message));
+  }
+}
+
 async function editPromotion(id) {
   try {
     const response = await axiosClient.get(`/api/Promotion/ChiTietKhuyenMai/${id}`);
@@ -890,6 +1168,14 @@ function initModals() {
     document.getElementById('user-password-note').textContent = '*';
     document.getElementById('user-modal-title').textContent = 'Thêm người dùng';
     openModal('user-modal');
+  });
+
+  document.getElementById('add-shipper-btn')?.addEventListener('click', () => {
+    document.getElementById('shipper-form').reset();
+    document.getElementById('shipper-id').value = '';
+    document.getElementById('shipper-trangThai').checked = true;
+    document.getElementById('shipper-modal-title').textContent = 'Thêm shipper';
+    openModal('shipper-modal');
   });
 }
 
@@ -1057,6 +1343,46 @@ function initForms() {
 
   // Load categories for product form
   loadCategoriesForSelect();
+
+  // Shipper form
+  document.getElementById('shipper-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('shipper-id').value;
+    const data = {
+      TenShipper: document.getElementById('shipper-tenShipper').value,
+      DienThoai: document.getElementById('shipper-dienThoai').value,
+      Email: document.getElementById('shipper-email').value || null,
+      TrangThai: document.getElementById('shipper-trangThai').checked
+    };
+
+    if (!data.TenShipper || data.TenShipper.trim() === '') {
+      alert('Vui lòng nhập tên shipper');
+      return;
+    }
+    if (!data.DienThoai || data.DienThoai.trim() === '') {
+      alert('Vui lòng nhập số điện thoại shipper');
+      return;
+    }
+
+    try {
+      let response;
+      if (id) {
+        response = await axiosClient.put(`/api/Shipper/${id}`, data);
+      } else {
+        response = await axiosClient.post('/api/Shipper', data);
+      }
+
+      if (response.data && response.data.success) {
+        alert(response.data.message || 'Lưu shipper thành công');
+        closeModal('shipper-modal');
+        loadShippers();
+      } else {
+        alert('Lỗi: ' + (response.data?.message || 'Không thể lưu shipper'));
+      }
+    } catch (error) {
+      alert('Lỗi khi lưu shipper: ' + (error.response?.data?.message || error.message));
+    }
+  });
 }
 
 async function loadCategoriesForSelect() {
@@ -1473,6 +1799,13 @@ window.deleteProduct = deleteProduct;
 window.editCategory = editCategory;
 window.deleteCategory = deleteCategory;
 window.editPromotion = editPromotion;
+window.editShipper = editShipper;
+window.deleteShipper = deleteShipper;
+window.toggleShipperStatus = toggleShipperStatus;
+window.loadForumPostsAdmin = loadForumPostsAdmin;
+window.adminDeleteForumPost = adminDeleteForumPost;
+window.openForumEditModal = openForumEditModal;
+window.closeForumEditModal = closeForumEditModal;
 // In hóa đơn PDF
 async function printInvoice(orderId) {
   try {
@@ -1622,15 +1955,6 @@ async function loadVietnameseFont(jsPDF) {
       return;
     }
     
-    // Load font Noto Sans từ Google Fonts API
-    // Tuy nhiên, jsPDF cần font ở dạng base64, nên chúng ta sẽ sử dụng cách khác
-    // Sử dụng font Noto Sans đã được convert sẵn hoặc sử dụng font system
-    
-    // Với jsPDF 2.5+, có thể sử dụng cách render Unicode trực tiếp
-    // Hoặc sử dụng plugin jspdf-customfonts
-    
-    // Tạm thời, chúng ta sẽ sử dụng cách encode Unicode đúng cách
-    // và để jsPDF xử lý với font mặc định (times)
     window.vietnameseFontLoaded = true;
     resolve();
   });
@@ -1784,7 +2108,7 @@ function createPDF(order, jsPDF) {
     doc.text(removeVietnameseAccents('Cam on quy khach da mua hang!'), 105, 290, { align: 'center' });
   }
   
-  // Tải file PDF
+  
   doc.save(`HoaDon_${order.orderId}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
@@ -1798,4 +2122,28 @@ window.loadRevenueMonth = loadRevenueMonth;
 window.loadRevenueYear = loadRevenueYear;
 window.loadRevenueRange = loadRevenueRange;
 window.closeModal = closeModal;
+
+// Assign shipper to order
+window.assignShipper = async function(orderId, shipperId) {
+  if (!shipperId) {
+    if (!confirm('Bạn muốn bỏ gán shipper cho đơn hàng này?')) {
+      // reload để reset select
+      loadOrders();
+      return;
+    }
+  }
+
+  try {
+    const response = await axiosClient.post(`/api/Order/assign-shipper?shipper=${shipperId || 0}&idOrder=${orderId}`);
+    if (response.data && response.data.message) {
+      alert(response.data.message);
+    } else {
+      alert('Cập nhật shipper thành công');
+    }
+    loadOrders();
+  } catch (error) {
+    alert('Lỗi khi gán shipper: ' + (error.response?.data?.message || error.message));
+    loadOrders();
+  }
+};
 
