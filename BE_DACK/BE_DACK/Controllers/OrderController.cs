@@ -591,8 +591,10 @@ namespace BE_DACK.Controllers
                 });
             }
             order.IdShipper = shipper;
+            order.TrangThai = "Đang chuản "
             _context.Orders.Update(order);
             _context.SaveChanges();
+
             return Ok(new
             {
                 message = "Thành công"
