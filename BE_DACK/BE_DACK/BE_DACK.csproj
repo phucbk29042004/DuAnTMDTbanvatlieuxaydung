@@ -7,7 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="Service\VNPAY.NET\VNPAY.NET.csproj" />
+    <Compile Remove="Service\VNPAY.NET\**" />
+    <Content Remove="Service\VNPAY.NET\**" />
+    <EmbeddedResource Remove="Service\VNPAY.NET\**" />
+    <None Remove="Service\VNPAY.NET\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,12 +24,6 @@
     </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Service\VNPAY.NET\bin\Debug\net8.0\" />
-    <Folder Include="Service\VNPAY.NET\obj\Debug\net8.0\refint\" />
-    <Folder Include="Service\VNPAY.NET\obj\Debug\net8.0\ref\" />
   </ItemGroup>
 
 </Project>
