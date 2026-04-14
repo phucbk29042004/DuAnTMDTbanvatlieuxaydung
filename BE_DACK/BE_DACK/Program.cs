@@ -12,7 +12,7 @@ using WebAppDoCongNghe.Service;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<DACKContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("Connection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Connection")));
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
