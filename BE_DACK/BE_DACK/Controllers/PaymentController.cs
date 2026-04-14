@@ -137,7 +137,7 @@ namespace BE_DACK.Controllers
                 var thanhToan = new Payment
                 {
                     OrderId = dto.OrderId,
-                    NgayThanhToan = DateTime.Now,
+                    NgayThanhToan = DateTime.UtcNow,
                     SoTienThanhToan = dto.SoTien,
                     PhuongThucThanhToan = phuongThuc,
                     TrangThai = isVnpay ? "Chờ thanh toán" : "Thành công"
@@ -398,7 +398,7 @@ namespace BE_DACK.Controllers
                     return BadRequest(new { success = false, message = "Giao dịch này đã bị hủy trước đó." });
                 }
 
-                var khoangThoiGian = DateTime.Now - thanhToan.NgayThanhToan;
+                var khoangThoiGian = DateTime.UtcNow - thanhToan.NgayThanhToan;
                 if (khoangThoiGian.TotalHours > 24)
                 {
                     return BadRequest(new { success = false, message = "Chỉ có thể hủy thanh toán trong vòng 24 giờ." });

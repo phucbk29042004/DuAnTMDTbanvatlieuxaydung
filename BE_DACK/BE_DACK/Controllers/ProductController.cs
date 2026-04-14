@@ -1108,7 +1108,7 @@ namespace BE_DACK.Controllers
                     CustomerId = userId,
                     DiemDg = request.Score,
                     NoiDungDg = request.Content,
-                    NgayDg = DateTime.Now
+                    NgayDg = DateTime.UtcNow
                 };
 
                 _context.ProductReviews.Add(review);
@@ -1152,7 +1152,7 @@ namespace BE_DACK.Controllers
 
                 review.DiemDg = request.Score;
                 review.NoiDungDg = request.Content;
-                review.NgayDg = DateTime.Now;
+                review.NgayDg = DateTime.UtcNow;
 
                 _context.ProductReviews.Update(review);
                 await _context.SaveChangesAsync();

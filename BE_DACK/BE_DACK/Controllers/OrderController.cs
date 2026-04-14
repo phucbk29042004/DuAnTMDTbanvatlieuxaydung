@@ -22,12 +22,15 @@ namespace BE_DACK.Controllers
         [HttpPost("TaoDonHang")]
         public async Task<IActionResult> TaoDonHang()
         {
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             try
             {
                 // Lấy userId từ token
-                var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
-                if (userId <= 0)
+                if (!int.TryParse(User.FindFirst("id")?.Value, out var userId) || userId <= 0)
+                {
                     return Unauthorized(new { success = false, message = "Không thể xác định người dùng từ token." });
+                }
 
                 // Lấy giỏ hàng của user
                 var gioHang = await _context.ShoppingCarts
@@ -44,12 +47,27 @@ namespace BE_DACK.Controllers
                 // Kiểm tra tồn kho cho tất cả sản phẩm
                 foreach (var detail in gioHang.ShoppingCartDetails)
                 {
+                    if (!detail.ProductId.HasValue)
+                    {
+                        return BadRequest(new { success = false, message = "Giỏ hàng có sản phẩm không hợp lệ." });
+                    }
+
                     if (detail.Product == null)
                     {
                         return BadRequest(new { success = false, message = $"Sản phẩm ID {detail.ProductId} không tồn tại." });
                     }
 
-                    if (detail.SoLuongTrongGh > detail.Product.SoLuongConLaiTrongKho)
+                    var soLuong = detail.SoLuongTrongGh.GetValueOrDefault();
+                    if (soLuong <= 0)
+                    {
+                        return BadRequest(new
+                        {
+                            success = false,
+                            message = $"Sản phẩm '{detail.Product.TenSp}' có số lượng trong giỏ không hợp lệ."
+                        });
+                    }
+
+                    if (soLuong > detail.Product.SoLuongConLaiTrongKho)
                     {
                         return BadRequest(new
                         {
@@ -66,17 +84,18 @@ namespace BE_DACK.Controllers
                 foreach (var detail in gioHang.ShoppingCartDetails)
                 {
                     var giaGoc = detail.Product.Gia;
-                    var giaSauKhuyenMai = await PriceHelper.TinhGiaSauKhuyenMai(_context, detail.ProductId.Value, giaGoc);
+                    var soLuong = detail.SoLuongTrongGh.GetValueOrDefault();
+                    var giaSauKhuyenMai = await PriceHelper.TinhGiaSauKhuyenMai(_context, detail.ProductId!.Value, giaGoc);
 
-                    tongGiaTriGoc += detail.SoLuongTrongGh.GetValueOrDefault() * giaGoc;
-                    tongGiaTriSauKhuyenMai += detail.SoLuongTrongGh.GetValueOrDefault() * giaSauKhuyenMai;
+                    tongGiaTriGoc += soLuong * giaGoc;
+                    tongGiaTriSauKhuyenMai += soLuong * giaSauKhuyenMai;
                 }
 
                 // Tạo đơn hàng mới với giá SAU KHUYẾN MÃI
                 var donHang = new Order
                 {
                     CustomerId = userId,
-                    NgayTaoDonHang = DateTime.Now,
+                    NgayTaoDonHang = DateTime.UtcNow,
                     TongGiaTriDonHang = tongGiaTriSauKhuyenMai, // Lưu giá sau khuyến mãi
 
                     TrangThai = "Chờ xác nhận"
@@ -88,13 +107,14 @@ namespace BE_DACK.Controllers
                 // Tạo chi tiết đơn hàng và cập nhật tồn kho
                 foreach (var detail in gioHang.ShoppingCartDetails)
                 {
-                    var giaSauKhuyenMai = await PriceHelper.TinhGiaSauKhuyenMai(_context, detail.ProductId.Value, detail.Product.Gia);
+                    var soLuong = detail.SoLuongTrongGh.GetValueOrDefault();
+                    var giaSauKhuyenMai = await PriceHelper.TinhGiaSauKhuyenMai(_context, detail.ProductId!.Value, detail.Product!.Gia);
 
                     var orderDetail = new OrderDetail
                     {
                         OrderId = donHang.Id,
                         ProductId = detail.ProductId,
-                        SoLuongSp = detail.SoLuongTrongGh.GetValueOrDefault(),
+                        SoLuongSp = soLuong,
                         Gia = giaSauKhuyenMai, // Lưu giá sau khuyến mãi
                         TrangThai = "Chờ xác nhận"
                     };
@@ -102,12 +122,13 @@ namespace BE_DACK.Controllers
                     _context.OrderDetails.Add(orderDetail);
 
                     // Giảm số lượng tồn kho
-                    detail.Product.SoLuongConLaiTrongKho -= detail.SoLuongTrongGh.GetValueOrDefault();
+                    detail.Product.SoLuongConLaiTrongKho -= soLuong;
                 }
 
                 // Xóa giỏ hàng sau khi tạo đơn
                 _context.ShoppingCartDetails.RemoveRange(gioHang.ShoppingCartDetails);
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 return Ok(new
                 {
@@ -124,8 +145,21 @@ namespace BE_DACK.Controllers
                     }
                 });
             }
+            catch (DbUpdateException ex)
+            {
+                await transaction.RollbackAsync();
+
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Lỗi khi lưu đơn hàng vào cơ sở dữ liệu.",
+                    error = ex.InnerException?.Message ?? ex.Message
+                });
+            }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
+
                 return StatusCode(500, new
                 {
                     success = false,

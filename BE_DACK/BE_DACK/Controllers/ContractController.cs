@@ -30,7 +30,7 @@ namespace BE_DACK.Controllers
                     FullName = contract.FullName,
                     Email = contract.Email,
                     Message = contract.Message,
-                    NgayGui = DateTime.Now
+                    NgayGui = DateTime.UtcNow
                 };
                 _context.LienHes.Add(newContract);
                 _context.SaveChanges();

@@ -150,7 +150,7 @@ namespace BE_DACK.Controllers
                     issuer: jwtIssuer,
                     audience: jwtIssuer,
                     claims: claims,
-                    expires: DateTime.Now.AddHours(3), // Token sống 3 tiếng
+                    expires: DateTime.UtcNow.AddHours(3), // Token sống 3 tiếng
                     signingCredentials: credentials
                 );
 

@@ -248,7 +248,7 @@ namespace BE_DACK.Controllers
                     NoiDung = request.NoiDung.Trim(),
                     CustomerId = userId,
                     LuotXem = 0,
-                    NgayTao = DateTime.Now
+                    NgayTao = DateTime.UtcNow
                 };
 
                 _context.ForumPosts.Add(post);
@@ -682,7 +682,7 @@ namespace BE_DACK.Controllers
                     PostId = request.PostId,
                     CustomerId = userId,
                     NoiDung = request.NoiDung.Trim(),
-                    NgayTao = DateTime.Now
+                    NgayTao = DateTime.UtcNow
                 };
 
                 _context.ForumComments.Add(comment);
